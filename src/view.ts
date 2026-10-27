@@ -58,14 +58,31 @@ function text(ctx: CanvasRenderingContext2D, label: string, x: number, y: number
 function line(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, color: string, width: number) {
   ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
 }
-function ball(ctx: CanvasRenderingContext2D, x: number, y: number, radius = 18, stretch = 1) {
+/** Keep the visible ball centered on the strike coordinate. Height reads through
+ * perspective size and a displaced ground shadow, so players never aim at an invisible ball. */
+function ball(ctx: CanvasRenderingContext2D, x: number, y: number, radius = 18, stretch = 1, height = 0) {
+  const lift = Math.max(0, Math.min(260, height));
+  const size = radius * (1 + Math.min(.7, lift / 360));
+  const opacity = ctx.globalAlpha;
   ctx.save(); ctx.translate(x, y);
-  ctx.fillStyle = 'rgba(8,45,40,.24)'; ctx.beginPath(); ctx.ellipse(6, 10, radius * 1.02, radius * .63, 0, 0, TAU); ctx.fill();
-  ctx.scale(stretch, 1 / Math.sqrt(stretch));
-  ctx.fillStyle = C.lime; ctx.beginPath(); ctx.arc(0, 0, radius, 0, TAU); ctx.fill();
-  ctx.strokeStyle = '#fffbd8'; ctx.lineWidth = Math.max(2, radius * .09);
-  ctx.beginPath(); ctx.arc(-radius * .72, 0, radius * .78, -.95, .95); ctx.stroke();
-  ctx.beginPath(); ctx.arc(radius * .72, 0, radius * .78, Math.PI - .95, Math.PI + .95); ctx.stroke();
+  ctx.fillStyle = '#0d3e47'; ctx.globalAlpha = opacity * (.32 - Math.min(.17, lift / 1400));
+  ctx.beginPath(); ctx.ellipse(6 + lift * .22, 10 + lift * .42, radius + lift * .065, radius * .55 + lift * .032, 0, 0, TAU); ctx.fill();
+  ctx.globalAlpha = opacity; ctx.scale(stretch, 1 / Math.sqrt(stretch));
+  ctx.fillStyle = '#b7ce42'; ctx.beginPath(); ctx.arc(0, 0, size, 0, TAU); ctx.fill();
+  ctx.fillStyle = C.lime; ctx.beginPath(); ctx.arc(-size * .06, -size * .09, size * .94, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#f6fbb2'; ctx.globalAlpha = opacity * .46; ctx.beginPath(); ctx.ellipse(-size * .28, -size * .34, size * .3, size * .18, -.7, 0, TAU); ctx.fill(); ctx.globalAlpha = opacity;
+  ctx.strokeStyle = '#fffbd8'; ctx.lineWidth = Math.max(2, size * .09);
+  ctx.beginPath(); ctx.arc(-size * .72, 0, size * .78, -.95, .95); ctx.stroke();
+  ctx.beginPath(); ctx.arc(size * .72, 0, size * .78, Math.PI - .95, Math.PI + .95); ctx.stroke();
+  ctx.restore();
+}
+function groundImpact(ctx: CanvasRenderingContext2D, x: number, y: number, age: number) {
+  if (age < 0 || age > .55) return;
+  const t = age / .55;
+  ctx.save(); ctx.globalAlpha = (1 - t) * .72; ctx.strokeStyle = C.cream; ctx.lineWidth = 4 * (1 - t) + 1;
+  ctx.beginPath(); ctx.ellipse(x, y, 23 + t * 66, 15 + t * 42, 0, 0, TAU); ctx.stroke();
+  ctx.globalAlpha = (1 - t) * .24; ctx.fillStyle = C.lime;
+  ctx.beginPath(); ctx.ellipse(x, y, 20 + t * 26, 11 + t * 15, 0, 0, TAU); ctx.fill();
   ctx.restore();
 }
 function piece(ctx: CanvasRenderingContext2D, glyph: number, x: number, y: number, height: number) {
@@ -189,7 +206,7 @@ function help(ctx: CanvasRenderingContext2D, v: GameView, f: Frame) {
   at(ctx, f, () => {
     panel(ctx, f.native ? -420 : -760, -430, f.native ? 840 : 1520, 860);
     text(ctx, 'A TWIST IS YOUR SWING', 0, -350, f.native ? 48 : 64);
-    if (f.native) text(ctx, 'One back-wall bounce to recover.', 0, -291, 32, C.faded);
+    if (f.native) text(ctx, 'Return before the second bounce.', 0, -291, 32, C.faded);
     const px = f.native ? -100 : -280, py = -20;
     piece(ctx, 5, px, py + (f.native ? 52 : 22), f.native ? 170 : 210);
     // Real clockwise line sweep: facing up, then rightward tangent at contact.
@@ -199,8 +216,11 @@ function help(ctx: CanvasRenderingContext2D, v: GameView, f: Frame) {
     const sx = px + Math.cos(angle) * 96, sy = py + Math.sin(angle) * 96;
     line(ctx, sx, sy, px + Math.cos(angle) * 240, py + Math.sin(angle) * 240, C.cream, 7);
     const contact = .15 + .28 * .5, flight = Math.min(1, Math.max(0, (t - contact) / .5));
-    ball(ctx, px + flight * (f.native ? 320 : 610), py - 180, 20);
-    if (flight > 0 && flight < 1) { line(ctx, px + flight * (f.native ? 320 : 610) - 60, py - 180, px + flight * (f.native ? 320 : 610) - 30, py - 180, C.lime, 3); }
+    const distance = f.native ? 320 : 610, bounceAt = .6;
+    const arcT = flight < bounceAt ? flight / bounceAt : (flight - bounceAt) / (1 - bounceAt);
+    const height = flight > 0 && flight < 1 ? 4 * arcT * (1 - arcT) * (flight < bounceAt ? 130 : 58) : 0;
+    if (flight >= bounceAt) groundImpact(ctx, px + distance * bounceAt, py - 180, (flight - bounceAt) * 1.6);
+    ball(ctx, px + flight * distance, py - 180, 20, 1, height);
     if (f.native) {
       text(ctx, 'Slide beside the ball.', 0, 150, 40);
       text(ctx, 'Twist your line through it.', 0, 204, 40);
@@ -208,7 +228,7 @@ function help(ctx: CanvasRenderingContext2D, v: GameView, f: Frame) {
     } else {
       text(ctx, 'Slide beside the ball.', 0, 150, 48);
       text(ctx, 'Twist the line through it. The ball leaves sideways.', 0, 215, 40);
-      text(ctx, 'Walls rebound the ball. You get one back-wall bounce to recover.', 0, 275, 32, C.faded);
+      text(ctx, 'Return before the second ground bounce. Walls stay in play.', 0, 275, 32, C.faded);
     }
     button(ctx, f, 'back', { x: -200, y: 302, width: 400, height: 120 }, 'BACK TO GAME', true);
   });
@@ -262,7 +282,15 @@ function play(ctx: CanvasRenderingContext2D, v: GameView) {
     ctx.save(); ctx.globalAlpha = .25 + .12 * Math.sin(v.now / 250); ctx.strokeStyle = C.lime; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(m.ball.x, m.ball.y, 29 + 4 * Math.sin(v.now / 250), 0, TAU); ctx.stroke(); ctx.restore();
   }
-  if (m.phase !== 'point' && m.phase !== 'over') ball(ctx, m.ball.x, m.ball.y, 18, m.phase === 'rally' ? 1.06 : 1);
+  if (m.lastBounce) groundImpact(ctx, m.lastBounce.x, m.lastBounce.y, m.lastBounce.age);
+  const impactAge = m.lastBounce?.age ?? Infinity;
+  if (m.phase !== 'over' && (m.phase !== 'point' || impactAge < .35)) {
+    const squash = m.ball.z < 22 ? .32 * Math.max(0, 1 - impactAge / .12) : 0;
+    ctx.save();
+    if (m.phase === 'point') ctx.globalAlpha = Math.max(0, 1 - impactAge / .35);
+    ball(ctx, m.ball.x, m.ball.y, 18, 1 + squash, m.ball.z);
+    ctx.restore();
+  }
   if (v.missing) {
     ctx.fillStyle = 'rgba(13,49,44,.55)'; ctx.fillRect(0, 0, 1920, 1080);
     for (const side of [0, 1] as Side[]) {
@@ -280,14 +308,14 @@ function play(ctx: CanvasRenderingContext2D, v: GameView) {
       if (f.side === m.server) text(ctx, 'Twist through the ball', 0, 50, 48, C.faded, 760);
     });
   } else if (m.phase === 'rally') {
-    if (m.backWallBounces === 1) {
-      if (v.browser) text(ctx, 'RETURN!', m.receiver === 0 ? 490 : 1430, 980, 56, C.lime);
-      else at(ctx, NATIVE[m.receiver], () => text(ctx, 'RETURN!', 0, 110, 56, C.lime));
+    if (m.groundBounces === 1) {
+      if (v.browser) text(ctx, '1 BOUNCE · RETURN IT!', m.receiver === 0 ? 490 : 1430, 980, 48, C.lime, 860);
+      else at(ctx, NATIVE[m.receiver], () => text(ctx, '1 BOUNCE · RETURN IT!', 0, 110, 48, C.lime, 760));
     } else if (v.browser) statusText(ctx, v, m.rally > 1 ? `${m.rally} SHOT RALLY` : 'RALLY ON');
   }
   else if (m.phase === 'point') {
     const name = seatFor(v, m.pointWinner ?? 0)?.name ?? 'Player';
-    const reason = m.reason === 'short' ? 'Shot did not cross' : 'Missed the return';
+    const reason = m.reason === 'short' ? 'Shot did not cross' : 'Two ground bounces';
     if (v.browser) statusText(ctx, v, `POINT · ${name}`, reason);
     else for (const f of NATIVE) at(ctx, f, () => {
       text(ctx, f.side === m.pointWinner ? 'YOUR POINT' : 'OPPONENT POINT', 0, 110, 48);

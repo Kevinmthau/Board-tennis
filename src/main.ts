@@ -5,8 +5,9 @@ import { loadPieceFootprints, pieceFootprint, frontPoint, type PieceFootprints }
 import { noteContacts, pickPlayer, seated, selectorOpen } from './seats';
 import { PieceTracker, type TrackedPiece } from './tracking';
 import { SwingController, type SwingPose } from './swing';
-import { createMatch, nextServe, canStrike, inOwnHalf, type Match, type Side } from './tennis';
+import { createMatch, nextServe, canStrike, inOwnHalf, type Side } from './tennis';
 import { advanceRallyFrame, type RallyControl } from './rally-frame';
+import { readMatchSave, SAVE_VERSION, type SavedMatch } from './match-save';
 import { Splashes, Particles, Trail, PopTexts } from './fx';
 import { hit } from './howto';
 import { drawGame, loadGameArt, BUTTONS, type GameView, type RacketView } from './view';
@@ -30,7 +31,7 @@ const splashes = new Splashes(), particles = new Particles(180), pops = new PopT
 const trail = new Trail({ color: '#e9f583', width: 14, life: .2, glow: false });
 let taps: { x: number; y: number }[] = [];
 let running = true, last = 0, rosterAt = -Infinity, savedAt = 0;
-let saved: { match: Match; sides: { sessionId: number; side: Side }[] } | null = null;
+let saved: SavedMatch | null = null;
 let continuing = false, pendingSelector = false, placementCount = 0;
 const browser = !!(window as any).BoardSDK?.__simulated;
 const pieceFor = (s: Seat) => tracker.identities.find(p => p.id === s.pieceId);
@@ -77,19 +78,11 @@ function bindPieces() {
 
 function save() {
   if (mode !== 'play' && mode !== 'over') return;
-  BoardPlatform.state.save({ version: 1, match: JSON.parse(JSON.stringify(match)),
+  BoardPlatform.state.save({ version: SAVE_VERSION, match: JSON.parse(JSON.stringify(match)),
     sides: seats.filter(s => s.side !== null).map(s => ({ sessionId: s.player.sessionId, side: s.side! })) });
 }
 function readSave() {
-  const value = BoardPlatform.state.load() as any;
-  if (value?.version !== 1 || !Array.isArray(value.match?.score) || value.match.score.length !== 2
-    || !value.match.score.every((n: unknown) => typeof n === 'number' && Number.isFinite(n) && n >= 0)
-    || !['serve', 'rally', 'point', 'over'].includes(value.match?.phase)
-    || ![value.match?.ball?.x, value.match?.ball?.y, value.match?.ball?.vx, value.match?.ball?.vy].every(Number.isFinite)
-    || !Array.isArray(value.sides)) return;
-  value.match.backWallBounces = value.match.backWallBounces === 1 ? 1 : 0;
-  value.match.shotTime = Number.isFinite(value.match.shotTime) && value.match.shotTime >= 0 ? value.match.shotTime : 0;
-  saved = value;
+  saved = readMatchSave(BoardPlatform.state.load());
 }
 function enterSetup(restore = false) {
   mode = 'setup'; continuing = restore;
@@ -188,7 +181,9 @@ function update(now: number, dt: number) {
         if (epochs.get(p.id) !== p.epoch) { swings[s.side].reset(); epochs.set(p.id, p.epoch); }
         controls.push({ side: s.side, pose: poseOf(p), controller: swings[s.side] });
       }
+      const bounceBefore = match.bounceSerial;
       const result = advanceRallyFrame(match, dt, now, controls);
+      if (match.bounceSerial > bounceBefore) sound('bounce');
       if (result.hit) {
         sound('hit', result.hit.shot.speed);
         particles.burst(result.hit.at.x, result.hit.at.y, { count: 10, color: '#f3faab', speed: 180, life: .24, glow: false });

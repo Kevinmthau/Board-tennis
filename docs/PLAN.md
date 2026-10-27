@@ -23,10 +23,13 @@
 - Adapt the existing putt-putt collision to a moving ball. Sweep both the ball and line to avoid missed fast contacts.
 - The receiver can return once. A return becomes available to the other side after the ball crosses the center net.
 - Players stay in their half. The physical pose is never moved or clamped by game logic.
-- The center net is a visual separator. This arcade prototype has no height, ground bounces, double faults, or sets.
-- The whole 1920×1080 screen is the court. Top and bottom Board walls rebound the ball without a penalty.
-- Every incoming shot gets one back-wall recovery bounce. A second end-wall hit without a return loses the point for the receiver.
-- A racket return resets the back-wall allowance. A backward shot can bank off the hitter's own wall before crossing the net.
+- The center net is a visual separator. This arcade prototype has no net-height faults, double faults, or sets.
+- The whole 1920×1080 screen is the court. All four Board walls rebound the ball without a penalty.
+- Every shot rises and falls in a ballistic arc. A changing ball size and displaced shadow show its height without moving the visible strike target.
+- The first ground landing rebounds. The second ground landing without a return loses the point for the receiver.
+- Volleys are allowed. A racket return resets the ground-bounce count. Wall rebounds do not count as ground bounces.
+- A backward shot can bank off the hitter's own wall before crossing the net. Flight timing targets the receiving half.
+- Flight and planar motion slow together near the receiver. Ground contact adds a short ring, squash, and bounce sound.
 - A shot must cross the net within 8 seconds. Otherwise, the hitter loses the point. This prevents a vertical shot bouncing forever.
 - The line does not silently correct shot direction.
 - After a point, the conceding player receives a stationary serve ball. Their next twist begins the rally.
@@ -109,5 +112,7 @@ Native feel and uncoached human learning remain unverified until played on actua
 | Delivery | Playable local web version and Board-compatible package | builder | User requested a web build; no hardware installation requested |
 | Rally feel | Slow near the receiver, with live movement | person | Design answer |
 | Court extent | Whole screen, with Board walls | person | Follow-up design answer |
-| Walls | Top/bottom rebounds; one back-wall recovery per incoming shot | person | Follow-up design answer |
+| Walls | All four walls rebound without consuming a ground bounce | builder | Preserve full-screen wall play under corrected ground-bounce rule |
+| Ground bounces | First landing rebounds; second landing loses the point | person | Physical playtest correction |
+| Volleys | Allowed before the first ground bounce | builder | Preserve current return timing; asked as an optional preference |
 | Dead shot | Point lost after 8 seconds without crossing the net | builder | Prevent a perfectly vertical shot from stalling play |

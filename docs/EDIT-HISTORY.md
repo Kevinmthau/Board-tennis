@@ -25,3 +25,11 @@ Browser controller overlays are hidden while help or the final result is shown.
 The person asked to install the game on their Board for a Sports-piece playtest.
 Installed and launched the verified package on KT's Board. Confirmed the native title screen and clean game startup through a device screenshot and logs.
 Physical rally testing awaits the players; the app identity is now fixed for future updates and save continuity.
+
+## October 27, 2026 — Ground-bounce correction
+The person requested a ball that visibly arcs and bounces, with a lost point on its second bounce.
+Ground landings now replace back-wall contacts as the scoring condition. All four walls still rebound the ball.
+Each return starts a fresh arc and resets the count. Volleys remain available while awaiting the optional preference answer.
+Height changes the ball's apparent size and shadow. Ground contact adds a brief ring, squash, and sound.
+Old saves keep scores and players, restarting an old rally at a serve. New saves include flight and bounce state.
+Verified 143 passing tests and the browser's two-bounce point. Installed the update on KT's Board with the same app identity.

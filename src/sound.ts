@@ -1,5 +1,5 @@
 import { gameAudio } from './runtime';
-type Sound = 'place' | 'hit' | 'point' | 'win';
+type Sound = 'place' | 'hit' | 'bounce' | 'point' | 'win';
 function tone(frequency: number, duration: number, delay = 0, volume = .08) {
   const { ctx, sfx } = gameAudio();
   const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + delay;
@@ -9,6 +9,7 @@ function tone(frequency: number, duration: number, delay = 0, volume = .08) {
 }
 export function sound(kind: Sound, power = 600) {
   if (kind === 'hit') { tone(280 + power * .15, .075, 0, .15); tone(110, .045, 0, .06); }
+  if (kind === 'bounce') { tone(170, .095, 0, .12); tone(85, .06, .012, .05); }
   if (kind === 'place') { tone(210, .14); tone(440, .16, .06, .035); }
   if (kind === 'point') [440, 554, 660].forEach((n, i) => tone(n, .22, i * .09));
   if (kind === 'win') [440, 554, 660, 880].forEach((n, i) => tone(n, .5, i * .14));

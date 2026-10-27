@@ -24,9 +24,9 @@ Both players' controls work at the same time. Mouse and touch also work: drag a 
 - Slide beside the ball, then twist the forehead line through it. Sliding or placing alone never hits.
 - The ball leaves sideways from the line. Faster rotation hits harder. Both twist directions work.
 - Incoming shots slow near the receiver to give time for a return.
-- Top and bottom walls rebound the ball. Each incoming shot gets one back-wall recovery bounce.
-- A second end-wall contact without a racket return loses the point for the receiver. A return resets the allowance.
-- A backwards shot can bank off the hitter's wall before crossing the net. It does not consume the receiver's recovery bounce.
+- Each shot rises and falls in an arc. Its first ground bounce rebounds; its second ground bounce loses the point for the receiver.
+- You can volley before the first bounce or return after it. Every racket return resets the ground-bounce count.
+- All four walls rebound the ball without counting as ground bounces. A backwards shot can bank off the hitter's wall.
 - A shot must cross the net within eight seconds. This stops a vertical shot from bouncing forever.
 - The conceding player serves next. The ball waits until that player deliberately twists through it.
 - First to 7, win by 2. The result waits for Rematch or Change setup.
@@ -50,5 +50,7 @@ python3 -m http.server 5177 --bind 127.0.0.1 --directory web-dist
 `twist-tennis.webapp.zip` is the Board package. Browser proxy controls are added only to `web-dist/`, never to the native package. Native players join through Board's player selector. On Change setup, lift and replace both pieces after choosing the players.
 
 The app identity is kept in `board.config.json`. The Sports model, measured footprints, canonical product art, and SDK beta.8 come from board-games-ai. The SDK remains vendored because the public npm release is older. Vite and its source-map dependency were patched within their existing compatible versions.
+
+Updating from the original wall-bounce build preserves scores, players, and the longest rally. An old rally restarts at a stationary serve. New saves preserve the ball's height and ground-bounce count.
 
 See [the design plan](docs/PLAN.md), [build checklist](docs/BUILD-CHECKLIST.md), [acceptance ledger](docs/ACCEPTANCE-LEDGER.md), and [asset sources](docs/ASSET-MANIFEST.md). Browser and unit tests do not establish real Board tracking feel or hardware performance.

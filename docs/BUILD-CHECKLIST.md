@@ -19,3 +19,15 @@
 - [x] Installed and launched on KT's Board; native title screenshot and startup logs checked.
 - [ ] Real Board physical piece recognition and rally feel tested.
 - [ ] Uncoached human playtest (pending user play).
+
+## Ground-bounce update
+
+- [x] Ball rises and falls; height remains aligned with the visible strike coordinate.
+- [x] First ground contact rebounds; second contact awards the hitter; walls do not count.
+- [x] Returns reset the count; volleys preserve continuous flight height.
+- [x] Racket contacts before and after the second-bounce deadline tested.
+- [x] Previous scores/results migrate; new flight state survives save round trips in tests.
+- [x] 143 tests pass; build:web and Board package pass.
+- [x] Browser first bounce and second-bounce point visually verified.
+- [x] Updated package installed and launched on KT's Board; stored state restored.
+- [ ] Updated ground-bounce feel tested by two people with Sports pieces.

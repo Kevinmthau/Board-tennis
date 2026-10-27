@@ -7,7 +7,8 @@ export interface RallyFrameResult {
   /** True only when this frame commits a point, including a match-ending point. */
   point: boolean;
 }
-const copyMatch = (match: Match): Match => ({ ...match, ball: { ...match.ball }, score: [...match.score] });
+const copyMatch = (match: Match): Match => ({ ...match, ball: { ...match.ball },
+  lastBounce: match.lastBounce ? { ...match.lastBounce } : null, score: [...match.score] });
 
 /** Resolve the receiving frame before committing a point.
  * Controller epochs and physical presence are the caller's responsibility; a null pose clears intent.
@@ -29,7 +30,11 @@ export function advanceRallyFrame(match: Match, dt: number, now: number,
     const enabled = !!pose && inOwnHalf(side, pose.x) && (canStrike(match, side) || canStrike(eligible, side));
     const shot = controller.updateAlong(pose, now, enabled, path);
     if (!shot || result.hit) continue;
+    const contactElapsed = Math.max(0, Math.min(duration, (shot.contactTimeMs - (now - duration * 1000)) / 1000));
+    // The second landing ends the possession immediately; a simultaneous or later twist cannot save it.
+    if (exited && contactElapsed >= (trace.at(-1)?.time ?? 0) - 1e-9) continue;
     const returned = copyMatch(match);
+    stepMatch(returned, contactElapsed);
     returned.ball.x = shot.contactPosition.x; returned.ball.y = shot.contactPosition.y;
     if (returned.phase === 'rally' && inOwnHalf(side, returned.ball.x)) returned.crossedNet = true;
     if (!strike(returned, side, shot)) {

@@ -24,3 +24,14 @@ Browser checks establish simulated behavior only; they do not establish physical
 - **Evidence:** `artifacts/board-first-launch.png` (local screenshot, ignored by Git).
 - **Human:** Playtest ready; no physical rally or player feedback observed yet.
 - **Open:** Physical piece recognition, swing feel, pause recovery, native saves, and an uncoached two-person match remain to be checked during play.
+
+## October 27, 2026 — Visible flight and two ground bounces
+
+- **Asked for:** "the ball needs to look like it is arcing and bouncing. IF it bounces twice i lose the point."
+- **Source:** Ball height follows a ballistic arc. The first ground contact rebounds; the second awards the hitter. Walls reflect without counting. Volleys remain allowed. Receiver slowdown applies to flight and planar travel together. Size, shadow, impact rings, squash, and audio communicate the height and landings.
+- **Unit/integration:** 143 passed, 0 failed, 3 external catalog tests skipped. Checks cover first and second ground contacts, wall banks, volleys, exact strike timing around the second bounce, 30/60/120 Hz stepping, save migration, and a complete input-driven match/rematch.
+- **Build:** TypeScript, Vite, standalone web build, and Board package pass.
+- **Browser:** Served through the normal controls. Observed airborne size/shadow, the first-bounce cue, and a point labeled "Two ground bounces". Screenshot: `artifacts/ground-bounce-preview.png`.
+- **Board:** Reinstalled and launched with the existing appId on KT's Board. Logs confirm the new asset bundle and restored platform state. Screenshot confirms the game behind the native pause menu: `artifacts/board-ground-bounce-update.png`. A person must tap Resume to play.
+- **Saves:** Version 1 scores, players, longest rally, and completed results are preserved. An old active rally restarts at a serve. Version 2 preserves flight and bounce state. Unit migration checks pass; native logs confirm stored state was available on launch.
+- **Human:** The bounce correction came from the person's playtest feedback. The updated physical rally feel has not yet been observed.

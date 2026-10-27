@@ -162,19 +162,19 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
   b=snapshot().match.ball;move(0,{x:b.x-5,y:b.y+170,orientation:270});tick();
   assert.equal(snapshot().match.rally,2);move(0,{orientation:272});tick();
   assert.equal(snapshot().match.lastHitter,0);assert.equal(snapshot().match.rally,3);assert.ok(snapshot().match.ball.vx>0);
-  until(s=>s.match.backWallBounces===1,'the missed return uses its one back-wall bounce');
+  until(s=>s.match.groundBounces===1,'the missed return lands once and rebounds');
   assert.equal(snapshot().match.phase,'rally');assert.equal(snapshot().match.receiver,1);
-  assert.deepEqual(snapshot().match.score,[0,0],'first receiver back-wall bounce gives a recovery chance');
-  assert.ok(snapshot().match.ball.vx<0,'back-wall bounce reflects the ball into the court');
-  until(s=>s.match.phase==='point','a second end-wall contact without a return awards a point');
-  assert.deepEqual(snapshot().match.score,[1,0]);assert.equal(snapshot().match.reason,'baseline');
+  assert.deepEqual(snapshot().match.score,[0,0],'first ground bounce gives a recovery chance');
+  assert.ok(snapshot().match.ball.vz>0,'first ground bounce launches a new visible arc');
+  until(s=>s.match.phase==='point','a second ground bounce without a return awards a point');
+  assert.deepEqual(snapshot().match.score,[1,0]);assert.equal(snapshot().match.groundBounces,2);
   assert.equal(snapshot().match.server,1);assert.equal(snapshot().match.bestRally,3);
   until(s=>s.match.phase==='serve','point announcement ends at the conceding player serve');
   assert.equal(snapshot().match.ball.x,1420);assert.equal(snapshot().match.ball.y,540);
   tick(120);assert.equal(snapshot().match.phase,'serve','next point waits for an intentional serve');
 
   // Earn the remaining points through normal serves and returns. The right player serves,
-  // the left player returns, and the right player misses its back-wall recovery chance.
+  // the left player returns, and the right player lets the ball land twice.
   for(let expected=2;expected<=7;expected++){
     assert.equal(snapshot().match.phase,'serve');
     move(1,{x:1420,y:240});tick(); // translate clear without twisting an overlapping line
@@ -188,7 +188,7 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
     b=snapshot().match.ball;move(0,{x:b.x-5,y:b.y+170,orientation:270});tick();
     move(0,{orientation:272});tick();
     assert.equal(snapshot().match.lastHitter,0);assert.equal(snapshot().match.rally,2);
-    assert.equal(snapshot().match.backWallBounces,0,'a fresh return resets the recovery allowance');
+    assert.equal(snapshot().match.groundBounces,0,'a fresh return resets the ground-bounce count');
     until(s=>s.match.phase==='point'||s.match.phase==='over',`the missed return awards point ${expected}`);
     assert.deepEqual(snapshot().match.score,[expected,0]);
     if(expected<7)until(s=>s.match.phase==='serve','following serve becomes ready');
