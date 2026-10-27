@@ -68,5 +68,5 @@
 - [x] Restored seat binding, placement-triggered player selection, and single-loop resume have assembled-input coverage.
 - [x] In-play scoring labels meet 48 px; all 416 actual-font layout cases pass.
 - [x] Final combined tests: 161 pass, 3 existing catalog skips; TypeScript, web build, and Board package pass.
-- [ ] Reviewed changes committed and pushed to the requested public repository.
+- [x] Reviewed changes committed as `7683b73` and pushed to public `Kevinmthau/Board-tennis` on `main`.
 - [ ] Updated pause/tracking/volley behavior verified with physical pieces on Board.
