@@ -29,7 +29,7 @@ Physical rally testing awaits the players; the app identity is now fixed for fut
 ## October 27, 2026 — Ground-bounce correction
 The person requested a ball that visibly arcs and bounces, with a lost point on its second bounce.
 Ground landings now replace back-wall contacts as the scoring condition. All four walls still rebound the ball.
-Each return starts a fresh arc and resets the count. Volleys remain available while awaiting the optional preference answer.
+Each return starts a fresh arc and resets the count. The person confirmed that volleys are allowed.
 Height changes the ball's apparent size and shadow. Ground contact adds a brief ring, squash, and sound.
 Old saves keep scores and players, restarting an old rally at a serve. New saves include flight and bounce state.
 Verified 143 passing tests and the browser's two-bounce point. Installed the update on KT's Board with the same app identity.

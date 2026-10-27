@@ -114,5 +114,5 @@ Native feel and uncoached human learning remain unverified until played on actua
 | Court extent | Whole screen, with Board walls | person | Follow-up design answer |
 | Walls | All four walls rebound without consuming a ground bounce | builder | Preserve full-screen wall play under corrected ground-bounce rule |
 | Ground bounces | First landing rebounds; second landing loses the point | person | Physical playtest correction |
-| Volleys | Allowed before the first ground bounce | builder | Preserve current return timing; asked as an optional preference |
+| Volleys | Allowed before the first ground bounce | person | Confirmed design answer: "Allow volleys" |
 | Dead shot | Point lost after 8 seconds without crossing the net | builder | Prevent a perfectly vertical shot from stalling play |
