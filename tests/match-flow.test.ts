@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Board,BoardContactPhase,BoardContactType,BoardPlayerType,type BoardContact} from '@board.fun/web-sdk';
-import type {Match,Side} from '../src/tennis';
+import {createMatch,type Match,type Side} from '../src/tennis';
 import {ballDisplay} from '../src/ball-display';
 
 // An assembled-game walk. Only normal SDK contact batches, clock ticks and menu callbacks
@@ -11,7 +11,8 @@ type Snapshot={mode:string;match:Match;placementCount:number;running:boolean;
   seats:{sessionId:number;name:string;side:Side|null;pieceId:number|null;present:boolean}[]};
 type Pose={id:number;glyph:number;x:number;y:number;orientation:number};
 const g=globalThis as unknown as Record<string,unknown>;
-let now=1000,raf:((ms:number)=>void)|null=null,draws=0;
+let now=1000,draws=0,nextFrame=1;
+const frames=new Map<number,(ms:number)=>void>();
 const texts:string[]=[];
 const recorder=()=>new Proxy({}as Record<string,unknown>,{
   get(state,key){
@@ -38,8 +39,8 @@ const fakeCanvas=()=>({width:0,height:0,style:{},getContext:()=>recorder(),
 const param=()=>({value:1,setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){},setTargetAtTime(){},cancelScheduledValues(){}});
 const audioNode=()=>({connect(){},disconnect(){},start(){},stop(){},gain:param(),frequency:param(),detune:param(),Q:param()});
 Object.defineProperty(performance,'now',{configurable:true,value:()=>now});
-g.requestAnimationFrame=(callback:(ms:number)=>void)=>{raf=callback;return 1;};
-g.cancelAnimationFrame=()=>{raf=null;};
+g.requestAnimationFrame=(callback:(ms:number)=>void)=>{const id=nextFrame++;frames.set(id,callback);return id;};
+g.cancelAnimationFrame=(id:number)=>{frames.delete(id);};
 g.document={title:'Twist Tennis',hidden:false,fonts:{add(){},size:0,ready:Promise.resolve()},
   querySelector:()=>fakeCanvas(),createElement:()=>fakeCanvas(),addEventListener:listen,removeEventListener(){}};
 g.FontFace=class{load(){return Promise.resolve(this);}};
@@ -68,9 +69,10 @@ const roster=[
   {playerId:'local-right',sessionId:22,name:'Right human',type:BoardPlayerType.Guest,avatarId:'0'},
 ];
 const rosterCallbacks:Function[]=[],replacementRequests:number[]=[];
+let addRequests=0;
 Object.assign(Board.session,{areServicesReady:()=>true,isReady:()=>true,getPlayers:()=>roster,getPlayerCount:()=>roster.length,
   getActiveProfile:()=>({...roster[0],sessionId:-1}),onPlayersChanged:(fn:Function)=>{rosterCallbacks.push(fn);return()=>{};},onActiveProfileChanged:()=>()=>{},
-  setAIPlayerTypes(){throw new Error('A two-human game must not register AI');},presentAddPlayer:async()=>false,
+  setAIPlayerTypes(){throw new Error('A two-human game must not register AI');},presentAddPlayer:async()=>{addRequests++;return false;},
   presentReplacePlayer:async(sessionId:number)=>{
     replacementRequests.push(sessionId);
     const index=roster.findIndex(p=>p.sessionId===sessionId);if(index<0)return false;
@@ -82,7 +84,9 @@ process.on('unhandledRejection',e=>errors.push(e));
 const snapshot=():Snapshot=>win.TwistTennisState;
 function tick(count=1){
   for(let i=0;i<count;i++){
-    now+=1000/60;const next=raf;raf=null;texts.length=0;if(next)next(now);
+    now+=1000/60;const pending=[...frames.values()];frames.clear();texts.length=0;
+    for(const next of pending)next(now);
+    assert.ok(frames.size<=1,'pause/resume must never create concurrent animation loops');
   }
 }
 function until(predicate:(s:Snapshot)=>boolean,message:string,maxFrames=1800){
@@ -107,18 +111,58 @@ function tap(x:number,y:number){
 
 test('assembled game plays a real two-human match, survives repeated menu epochs, and waits for rematch',async()=>{
   await import('../src/runtime');
+  const restoredMatch=createMatch();restoredMatch.score=[3,4];
+  let lastSaved:any=null;
+  Object.assign(BoardPlatform.state,{
+    load:()=>({version:2,match:restoredMatch,sides:[
+      {sessionId:91,playerId:'local-left',side:1},{sessionId:92,playerId:'local-right',side:0},
+    ]}),
+    save:(value:unknown)=>{lastSaved=value;},
+  });
+  const returningPlayer=roster.pop()!;
   let menuAction:((id:string)=>void)|null=null;
   Object.assign(BoardPlatform.menu,{onButton:(callback:(id:string)=>void)=>{menuAction=callback;return()=>{};}});
   await import('../src/main');
-  for(let i=0;i<30&&!raf;i++)await new Promise(resolve=>setTimeout(resolve,10));
-  assert.ok(raf,'game finishes its asynchronous font/geometry startup');
+  for(let i=0;i<30&&!frames.size;i++)await new Promise(resolve=>setTimeout(resolve,10));
+  assert.ok(frames.size,'game finishes its asynchronous font/geometry startup');
   tick(4);assert.equal(snapshot().mode,'title');assert.ok(draws>5);
+
+  // Pieces may already be on the glass when Continue is chosen after title help.
+  // Saved ownership must win over placement order, including a player rejoining later.
+  const {BUTTONS}=await import('../src/view');
+  const titleHelp=BUTTONS.help[0];tap(titleHelp.x+titleHelp.width/2,titleHelp.y+titleHelp.height/2);
+  assert.equal(snapshot().mode,'help');
+  batch!(poses.map(p=>contact(p,BoardContactPhase.Began)));tick(2);
+  assert.equal(snapshot().placementCount,2);
+  const titleBack=BUTTONS.back[0];tap(titleBack.x+titleBack.width/2,titleBack.y+titleBack.height/2);
+  const continueButton=BUTTONS.continue[0];tap(continueButton.x+continueButton.width/2,continueButton.y+continueButton.height/2);
+  assert.equal(snapshot().mode,'setup');assert.deepEqual(snapshot().match.score,[3,4]);
+  assert.deepEqual(snapshot().seats.map(s=>[s.sessionId,s.side,s.pieceId]),[[11,1,2]],'Continue binds the saved right seat to the right piece');
+  roster.push(returningPlayer);for(const callback of rosterCallbacks)callback();tick(65);
+  assert.equal(snapshot().mode,'play');
+  assert.deepEqual(snapshot().seats.map(s=>[s.sessionId,s.side,s.pieceId]),[[11,1,2],[22,0,1]],'late roster joins retain their saved side');
+  assert.deepEqual(lastSaved.sides,[
+    {sessionId:11,playerId:'local-left',side:1},{sessionId:22,playerId:'local-right',side:0},
+  ],'future restores use stable player IDs despite changed session IDs');
+
+  // Return to a fresh setup through real menu/lift input for the complete match below.
+  assert.ok(menuAction);(menuAction as (id:string)=>void)('setup');
+  batch!(poses.map(p=>contact(p,BoardContactPhase.Ended)));tick(14);
+  roster.pop();for(const callback of rosterCallbacks)callback();
+  poses[0].id=nextContact++;poses[1].id=nextContact++;
   batch!([contact(poses[0],BoardContactPhase.Began)]);tick(2);
-  assert.equal(snapshot().mode,'setup');assert.equal(snapshot().placementCount,1);
+  assert.equal(snapshot().mode,'setup');
+  // A fresh position outside the tracking-gap radius is a new placement.
+  // Keep matching glyphs to exercise duplicate-piece ownership for the whole match.
+  poses[1].y=600;
   batch!([contact(poses[1],BoardContactPhase.Began)]);tick(3);
+  for(let i=0;i<8;i++)await Promise.resolve();
+  assert.equal(addRequests,1,'placing a piece at a free edge opens the roster selector once');
+  tick(60);assert.equal(addRequests,1,'dismissing the selector does not reopen it every frame');
+  roster.push(returningPlayer);for(const callback of rosterCallbacks)callback();tick(65);
   assert.equal(snapshot().mode,'play');assert.equal(snapshot().match.phase,'serve');
   assert.deepEqual(snapshot().seats.map(s=>[s.sessionId,s.side,s.present]),[[11,0,true],[22,1,true]]);
-  assert.equal(snapshot().placementCount,2,'same-glyph contacts have independent real identities');
+  const placementCount=snapshot().placementCount;
   tick(30);assert.equal(snapshot().match.phase,'serve','stationary overlapping racket cannot serve itself');
 
   move(0,{orientation:272});tick();
@@ -126,7 +170,6 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
   assert.ok(snapshot().match.ball.vx>0);assert.equal(snapshot().match.rally,1);
 
   // Help is a view of the same rally. Moving or twisting while it is open carries no strike intent back.
-  const {BUTTONS}=await import('../src/view');
   const beforeHelp=snapshot();assert.ok(menuAction,'main registered its platform menu actions');
   (menuAction as (id:string)=>void)('help');tick(90);
   assert.equal(snapshot().mode,'help');assert.deepEqual(snapshot().match,beforeHelp.match,'help time freezes the live ball');
@@ -146,10 +189,14 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
     for(const resume of resumes)resume();tick(2);
     for(let side=0;side<2;side++)poses[side]={...poseBefore[side],id:nextContact++};
     batch!(poses.map(p=>contact(p,BoardContactPhase.Began)));tick(2);
-    const after=snapshot();assert.equal(after.running,true);assert.equal(after.placementCount,2,'redetection has no second splash');
+    const after=snapshot();assert.equal(after.running,true);assert.equal(after.placementCount,placementCount,'redetection has no second splash');
     assert.deepEqual(after.seats.map(s=>s.pieceId),before.seats.map(s=>s.pieceId),'ownership survives fresh native IDs');
     assert.equal(after.match.rally,1,'menu return never invents another swing');assert.deepEqual(after.match.score,[0,0]);
   }
+  // Resume before the queued frame runs: cancellation must leave exactly one loop.
+  for(const pause of pauses)pause();for(const resume of resumes)resume();
+  batch!(poses.map(p=>contact(p,BoardContactPhase.Began)));tick(2);
+  assert.equal(frames.size,1);
 
   until(s=>s.match.crossedNet&&s.match.ball.x>=1380,'serve reaches the right receiver');
   let b=ballDisplay(snapshot().match.ball);
@@ -197,11 +244,11 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
   assert.equal(snapshot().mode,'over');assert.equal(snapshot().match.winner,0);assert.equal(snapshot().match.bestRally,3);
   const result=snapshot();tick(600);
   assert.deepEqual(snapshot().match,result.match,'final score waits for a shared decision indefinitely');
-  assert.equal(snapshot().placementCount,2);
+  assert.equal(snapshot().placementCount,placementCount);
 
   const button=BUTTONS.rematch[0];tap(button.x+button.width/2,button.y+button.height/2);tick(2);
   assert.equal(snapshot().mode,'play');assert.equal(snapshot().match.phase,'serve');assert.deepEqual(snapshot().match.score,[0,0]);
-  assert.equal(snapshot().match.bestRally,0);assert.equal(snapshot().placementCount,2,'rematch preserves pieces without arrival effects');
+  assert.equal(snapshot().match.bestRally,0);assert.equal(snapshot().placementCount,placementCount,'rematch preserves pieces without arrival effects');
   assert.deepEqual(snapshot().seats.map(s=>[s.sessionId,s.pieceId]),result.seats.map(s=>[s.sessionId,s.pieceId]));
   tick(30);assert.equal(snapshot().match.phase,'serve');
 

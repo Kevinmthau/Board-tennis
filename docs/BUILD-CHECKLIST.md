@@ -40,3 +40,33 @@
 - [x] Browser arc, first landing marker, second-bounce score, and help checked.
 - [x] Updated package launched on KT's Board; title screen and startup logs verified.
 - [ ] Players confirm the arc and court contact are clear on the physical Board.
+
+## Missing-piece overlay spacing
+
+- [x] Native pause heading, equipment art, and return instruction occupy separate spaces at both ends.
+- [x] Browser-rendered native left/right/both missing and returned layouts checked; text/art bounds do not overlap and meet the 48 px inset.
+- [x] Browser left/right/both missing and returned layouts checked for overlaps and inset bounds.
+- [x] 148 tests pass; TypeScript, web build, and Board package pass.
+- [x] Updated package installed and launched on Board; startup logs and setup screen checked.
+- [ ] Players confirm missing-piece prompts are clear on the physical Board.
+
+## All-screen text audit
+
+- [x] Title/Continue, setup, help, serve, rally, bounce, point, missing-piece, and result layouts checked in browser and native orientations.
+- [x] 416 actual-font render cases have no text/art intersections, inset violations, or undersized/out-of-bounds touch targets.
+- [x] Long, very long, accented, and descender-heavy names; three-digit scores; both winners; transient point pops and edge landings covered.
+- [x] Text uses bounded slots and measured line spacing; bounce badges and +1 pops avoid other text.
+- [x] 148 tests pass; TypeScript, web build, and Board package pass.
+- [x] Updated package installed and launched on Board; startup logs and device screenshot checked.
+- [ ] Players confirm the revised text and transient labels during physical play.
+
+## Code review and publication
+
+- [x] Physics, input/tracking, lifecycle, saves, rendering, audio, and packaging reviewed independently.
+- [x] Net-crossing and rapid-return volleys have regression coverage.
+- [x] Repeated menus, confirmed lifts, duplicate glyphs, and audio created during pause have regression coverage.
+- [x] Restored seat binding, placement-triggered player selection, and single-loop resume have assembled-input coverage.
+- [x] In-play scoring labels meet 48 px; all 416 actual-font layout cases pass.
+- [x] Final combined tests: 161 pass, 3 existing catalog skips; TypeScript, web build, and Board package pass.
+- [ ] Reviewed changes committed and pushed to the requested public repository.
+- [ ] Updated pause/tracking/volley behavior verified with physical pieces on Board.

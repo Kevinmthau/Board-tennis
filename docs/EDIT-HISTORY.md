@@ -41,3 +41,31 @@ The visible ball edge counts as contact, including its increased size while airb
 Each landing produces two bold rings, radial marks, a numbered badge, and a stronger squash.
 The bounce has a crisp attack and low thump. Point chimes start after the contact sound.
 Verified 148 passing tests and the browser's raised ball and numbered landing. Installed and launched the update on KT's Board.
+
+## October 27, 2026 — Missing-piece text overlap
+The person supplied a Board screenshot where "Rally paused" overlapped "Return your piece" and requested a fix.
+Both strings used the same seat frame with only 16 px between their centers. The native pause heading now
+sits above the equipment art, with the return instruction below it. The other player still sees the pause heading.
+Verified left-missing, right-missing, both-missing, and returned layouts in native orientation and browser orientation
+using the actual renderer and font. All measured text/art bounds are separated and meet the 48 px inset.
+All 148 tests, TypeScript, the web build, and the Board package pass.
+Installed and launched the update on KT's Board; logs confirm the new bundle and a device screenshot confirms setup.
+
+## October 27, 2026 — All-screen text audit
+The person asked to check the other screens for overlapping text.
+The normal static screens were clear. Stress checks found unlimited name wrapping colliding with HUD scores
+and browser status instructions, accented lines touching each other, landing numbers crossing HUD/status text,
+and the native +1 animation crossing point explanations (including the immediate result on a winning point).
+Names now occupy at most two lines with an ellipsis when necessary; line spacing uses actual font bounds.
+Browser status headings stay on one line with the action first. HUD spacing accommodates two name lines
+and three-digit scores. Landing number badges avoid reserved text areas while the contact rings stay put.
+The +1 animation uses the game font and a separate native position, and is omitted/cleared on result, help,
+setup, and missing-piece screens. Verified 416 actual-font layout cases and 148 passing existing tests.
+Installed and launched the audited package on KT's Board with the existing app identity; startup verified.
+
+## October 27, 2026 — Code review and publication
+The person requested a full code review, fixes until clear, then a commit and push. They then requested a new public repository under Kevinmthau.
+Preserved the existing missing-piece and text-audit changes. Fixed restore binding order and stable player identity across launches, automatic player selection on a new unclaimed placement, and duplicate animation loops after rapid pause/resume. Setup help now retains focus when both pieces become ready in the same frame.
+Fixed repeated-menu identity loss, loss of confirmed lift state, and duplicate-glyph recovery that discarded a valid identity. Audio created during a menu stays suspended.
+Fixed missed net-crossing volleys and a strike lock that could survive a rapid return. Browser scoring-rule labels now meet the in-play 48 px minimum with expanded spacing.
+Added regression coverage for these cases and reran the actual-font layout audit. No new media, gameplay rule changes, app identity changes, or hardware installation were requested.

@@ -43,6 +43,20 @@ test('duplicate glyphs preserve independent owners despite contact order changes
   assert.equal(first[0].owner, 1); assert.equal(first[1].owner, 2);
 });
 
+test('nearby duplicate glyphs recover both identities when the closest pair blocks one', () => {
+  for (const reverse of [false, true]) {
+    const t = new PieceTracker();
+    const first = t.update([{ ...c(1, 920), y: 400 }, { ...c(2, 1000), y: 500 }], 0).arrivals;
+    first[0].owner = 1; first[1].owner = 2; t.update([], 10);
+    const returned = [{ ...c(10, 920), y: 500 }, { ...c(20, 1000), y: 600 }];
+    const result = t.update(reverse ? returned.reverse() : returned, 100);
+    assert.equal(result.arrivals.length, 0, 'both returning pieces have a valid existing identity');
+    assert.equal(result.recovered.length, 2);
+    assert.equal(first[0].contactId, 10); assert.equal(first[1].contactId, 20);
+    assert.equal(first[0].owner, 1); assert.equal(first[1].owner, 2);
+  }
+});
+
 test('a nearby duplicate cannot take an identity still bound to a live contact', () => {
   const t = new PieceTracker(), p = t.update([c(1)], 0).arrivals[0];
   const next = t.update([c(2, 401), c(1, 400)], 100);
@@ -58,6 +72,33 @@ test('pause recovery matches position and glyph, not stale contact IDs or pause 
   assert.equal(result.arrivals.length, 0); assert.equal(result.recovered.length, 2);
   assert.equal(first[0].owner, 1); assert.equal(first[0].contactId, 2);
   assert.equal(first[1].owner, 2); assert.equal(first[1].contactId, 1);
+});
+
+test('another menu before redetection preserves the outstanding recovery identities', () => {
+  const t = new PieceTracker(), p = t.update([c(1)], 0).arrivals[0]; p.owner = 7;
+  t.paused(50); t.resumed(10000);
+  t.update([], 10100);
+  t.paused(10200); t.resumed(20000);
+  const result = t.update([c(9, 405)], 20100);
+  assert.equal(result.arrivals.length, 0, 'a repeated menu cannot create another placement splash');
+  assert.deepEqual(result.recovered, [p]);
+  assert.equal(p.owner, 7); assert.equal(p.contactId, 9);
+});
+
+test('another menu does not revive a piece whose recovery window already expired', () => {
+  const t = new PieceTracker(); t.update([c(1)], 0);
+  t.paused(50); t.resumed(10000);
+  t.paused(13000); t.resumed(20000);
+  const result = t.update([c(9, 405)], 20100);
+  assert.equal(result.arrivals.length, 1); assert.equal(result.recovered.length, 0);
+});
+
+test('a confirmed lift stays lifted through a short system menu', () => {
+  const t = new PieceTracker(), p = t.update([c(1)], 0).arrivals[0];
+  t.update([], 20); t.update([], 170); assert.equal(p.lifted, true);
+  t.paused(180); t.resumed(200); t.update([], 210);
+  assert.equal(p.present, false);
+  assert.equal(p.lifted, true, 'resume must not briefly unpause a rally whose piece is still lifted');
 });
 
 test('short glyph classification flaps freeze pose and invalidate swing intent', () => {

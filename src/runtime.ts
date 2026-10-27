@@ -44,10 +44,21 @@ export function startInput(onBatch: (batch: readonly BoardContact[], active: Rea
 export type AudioBus = "music" | "sfx";
 export type GameAudio = { ctx: AudioContext; music: GainNode; sfx: GainNode };
 const AUDIO_GESTURES = ["pointerdown", "pointerup", "touchstart", "touchend", "mousedown", "click", "keydown"];
-let gameAudioState: (GameAudio & { paused: boolean }) | null = null;
+let gameAudioState: GameAudio | null = null;
+let audioPaused = false;
+// Loading fonts and art may finish while the native menu is already open.
+// Remember lifecycle events before the first sound creates its AudioContext.
+Board.application.onPause(() => {
+  audioPaused = true;
+  if (gameAudioState) void gameAudioState.ctx.suspend().catch(() => {});
+});
+Board.application.onResume(() => {
+  audioPaused = false;
+  if (gameAudioState) void gameAudioState.ctx.resume().catch(() => {});
+});
 export function unlockAudio() {
   const a = gameAudioState;
-  if (a && !a.paused && a.ctx.state === "suspended") void a.ctx.resume().catch(() => {});
+  if (a && !audioPaused && a.ctx.state === "suspended") void a.ctx.resume().catch(() => {});
 }
 export function gameAudio(): GameAudio {
   if (gameAudioState) return gameAudioState;
@@ -55,17 +66,16 @@ export function gameAudio(): GameAudio {
   const bus = () => {
     const g = ctx.createGain(); g.connect(ctx.destination); return g;
   };
-  const a: GameAudio & { paused: boolean } = { ctx, music: bus(), sfx: bus(), paused: false };
+  const a: GameAudio = { ctx, music: bus(), sfx: bus() };
   gameAudioState = a;
   BoardPlatform.audio.bindBuses({ music: a.music, sfx: a.sfx });
   for (const type of AUDIO_GESTURES) window.addEventListener(type, unlockAudio, { capture: true, passive: true });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) unlockAudio(); });
-  Board.application.onPause(() => { a.paused = true; void ctx.suspend().catch(() => {}); });
-  Board.application.onResume(() => { a.paused = false; void ctx.resume().catch(() => {}); });
   ctx.addEventListener("statechange", () => console.info(`[audio] AudioContext ${ctx.state}`));
   console.info(`[audio] AudioContext ${ctx.state} at start`);
   (window as unknown as { __boardAudio?: AudioContext }).__boardAudio = ctx;
-  unlockAudio();
+  if (audioPaused) void ctx.suspend().catch(() => {});
+  else unlockAudio();
   return a;
 }
 // ---- game font --------------------------------------------------------------------------

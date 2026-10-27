@@ -45,3 +45,33 @@ Browser checks establish simulated behavior only; they do not establish physical
 - **Browser:** Observed the ball rise above its grounded shadow, rebound, show a numbered first landing, and award a second-bounce point. Help and its return control were checked. Screenshots: `artifacts/clear-ball-arc.png` and `artifacts/clear-court-contact.png`.
 - **Board:** Installed and launched on KT's Board with the same appId. Logs confirm asset `index-CbDyqvIr.js`, restored platform state, and a running audio context. Device screenshot confirms the title screen: `artifacts/board-clear-bounce-update.png`.
 - **Human:** The requested improvement came from the person's feedback. Clarity and audio quality on the updated physical Board await their next playtest.
+
+## October 27, 2026 — Missing-piece overlay spacing
+
+- **Asked for:** "fix this", with a native screenshot of overlapping "Rally paused" and "Return your piece" text.
+- **Source:** The native pause heading now occupies a separate slot above the canonical piece art. The return instruction stays below the art. Each player retains a seat-facing pause message; only missing pieces show the return prompt. No media or game rules changed.
+- **Unit/integration:** 148 passed, 0 failed, 3 external catalog tests skipped.
+- **Build:** TypeScript, Vite, standalone web build, and Board package pass. Existing appId and packageId retained.
+- **Browser:** Rendered the actual native and browser layouts with the bundled font for left missing, right missing, both missing, and pieces returned. Measured text/art bounds show no intersections and all remain within the 48 px inset. Native missing-piece screenshots visually checked: `artifacts/pause-overlay-native-left.png`, `artifacts/pause-overlay-native-right.png`, and `artifacts/pause-overlay-native-both.png`. This is renderer evidence using fixture state, not a physical piece test.
+- **Board:** Installed and launched on KT's Board. Logs confirm new bundle `index-CfPqb2jG.js`, restored platform state, and running audio. Device screenshot confirms the setup screen: `artifacts/board-pause-overlay-update.png`.
+- **Human:** Updated missing-piece prompts still await confirmation during physical play.
+
+## October 27, 2026 — All-screen overlap audit
+
+- **Asked for:** "check the other screens for overlapping text too"
+- **Source:** Bounded text slots prevent long names from overrunning scores, labels, and result details. Measured line spacing accommodates accents/descenders. HUD columns accommodate three-digit scores. Browser action headings stay on one line. Bounce badges avoid HUD/status/point-pop areas while rings stay at the physical contact. Native +1 pops use the game font and a separate position, and cannot linger over result/help/setup/missing-piece screens.
+- **Unit/integration:** 148 passed, 0 failed, 3 external catalog tests skipped. Existing full-match, rematch, pause, and setup journeys still pass.
+- **Build:** TypeScript, Vite, standalone web build, and Board package pass.
+- **Browser:** 416 fixture renders use the actual game renderer and font in native and browser orientations. Coverage includes title/Continue, all setup states, six help animation frames, both servers/receivers/winners, points, missing pieces, results, normal/long/extreme/accented/descender-heavy names, three-digit scores, animated point pops, and edge landing locations. No measured text/art intersections, 48 px inset violations, or touch-target size/bounds failures. Report: `artifacts/screen-audit-after.json`. Sixteen representative screenshots visually checked (including an independent native review): `artifacts/audit-*.png`. These fixtures verify rendering, not physical input or play feel.
+- **Board:** Installed and launched on KT's Board using the existing appId. Logs show bundle `index-B2JfE7Tg.js`, restored platform state, and running audio. Screenshot: `artifacts/board-screen-audit-update.png`.
+- **Human:** Physical confirmation of the revised labels and effects remains open.
+
+## October 27, 2026 — Code review, fixes, and public repository
+
+- **Asked for:** Review the whole game, fix findings, commit and push; create a public repository under Kevinmthau.
+- **Source:** Independent reviews covered physics, input/tracking, lifecycle, saves, rendering, audio, and packaging. All confirmed findings were fixed: Continue side binding and stable player identity, placement-triggered roster selection, duplicate animation loops, repeated-menu identity loss, confirmed-lift preservation, complete duplicate-glyph recovery, lazy audio pause handling, net-crossing volleys, rapid-return strike locks, and undersized in-play HUD labels. Existing layout edits were preserved. A follow-up review found no remaining confirmed code findings.
+- **Unit/integration:** 161 passed, 0 failed, 3 existing external-catalog skips. Regression tests include changed session IDs after restore, pieces already present when Continue is selected, late roster joins, selector dismissal, quick pause/resume, repeated menus, lifted pieces, duplicate recovery, paused audio startup, both net-crossing directions, consecutive volleys, and rendered text floors. The full input-driven match, result, and rematch still pass.
+- **Build:** TypeScript, Vite, standalone web build, Board package, and diff whitespace checks pass. Package retains the installed appId and packageId; final asset bundle is `index-DTrOZPvr.js`.
+- **Browser:** All 416 actual-font layout fixtures pass with no text intersections, inset violations, or undersized/out-of-bounds targets. Updated HUD screenshot: `artifacts/review-hud.png`. The final standalone package boots to its title screen with no captured console errors or warnings.
+- **Board/human:** No new hardware installation or physical playtest performed for this review. Native save round-trip, tracking feel, audio timing, and two-person volley behavior remain pending physical verification; browser and automated checks do not establish those results.
+- **Publication:** Target is the requested public `Kevinmthau/Board-tennis` repository. Publication completion is recorded in the build checklist and handover.

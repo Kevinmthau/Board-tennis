@@ -106,9 +106,16 @@ export class SwingController {
     this.angularSpeed = 0; this.status = 'ready';
   }
 
+  /** Track a not-yet-eligible receiver without accumulating a strike or a spent possession. */
+  observe(pose: SwingPose, ball: Point, now: number): void {
+    this.reset();
+    if (finite(pose) && finitePoint(ball) && Number.isFinite(now)) this.seed(pose, ball, now);
+  }
+
   /** Follow every reflected segment. The measured pose is interpolated in real frame time,
    * never bent to match the ball's collision path. A fresh or stale sample cannot strike. */
-  updateAlong(pose: SwingPose | null, now: number, enabled: boolean, path: readonly TimedPoint[]): SwingHit | null {
+  updateAlong(pose: SwingPose | null, now: number, enabled: boolean, path: readonly TimedPoint[],
+    notBeforeMs = -Infinity): SwingHit | null {
     const end = path[path.length - 1];
     if (!enabled || !pose || !finite(pose) || !end || !Number.isFinite(now)) { this.reset(); return null; }
     if (!this.previous || now - this.previousTime > SWING.maximumGapMs) {
@@ -117,14 +124,28 @@ export class SwingController {
     const origin = { ...this.previous }, start = this.previousTime, elapsed = now - start;
     if (elapsed <= 0) return null;
     const angle = shortAngleDelta(pose.facingDeg, origin.facingDeg);
-    for (const point of path) {
-      if (point.timeMs <= start) continue;
-      const t = Math.max(0, Math.min(1, (point.timeMs - start) / elapsed));
-      const interpolated: SwingPose = {
+    const poseAt = (time: number): SwingPose => {
+      const t = Math.max(0, Math.min(1, (time - start) / elapsed));
+      return {
         x: origin.x + (pose.x - origin.x) * t, y: origin.y + (pose.y - origin.y) * t,
         facingDeg: origin.facingDeg + angle * t, frontReach: origin.frontReach + (pose.frontReach - origin.frontReach) * t,
       };
-      const hit = this.update(interpolated, point, point.timeMs, true);
+    };
+    for (const point of path) {
+      if (point.timeMs <= start) continue;
+      if (point.timeMs <= notBeforeMs) {
+        this.observe(poseAt(point.timeMs), point, point.timeMs);
+        continue;
+      }
+      if (this.previousTime < notBeforeMs && this.previousBall) {
+        const t = (notBeforeMs - this.previousTime) / (point.timeMs - this.previousTime);
+        const before = this.previousBall;
+        this.observe(poseAt(notBeforeMs), {
+          x: before.x + (point.x - before.x) * t, y: before.y + (point.y - before.y) * t,
+          radius: ballRadius(before) + (ballRadius(point) - ballRadius(before)) * t,
+        }, notBeforeMs);
+      }
+      const hit = this.update(poseAt(point.timeMs), point, point.timeMs, true);
       if (hit) return hit;
     }
     return null;

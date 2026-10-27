@@ -70,6 +70,18 @@
 | Help | Watch the gesture | Literal animated line and tangent ball motion | Back returns to the same state |
 | Result | Rematch or change setup | One shared result with seat-facing views | Either shared choice is made |
 
+On Board, the missing-piece overlay gives each seat a separate pause heading above the equipment art
+and a return instruction below it. Both players see the pause heading; only missing pieces show art
+and the return instruction. All text remains at least 48 px, with clear space between elements.
+
+Player names use at most two lines in their allocated space; unusually long names end with an ellipsis.
+The roster retains the full name. Line spacing accounts for accents and descenders, and the browser HUD
+reserves separate space for three-digit scores. Browser serve and point headings stay on one line with
+the action first, so an abbreviated name cannot obscure the instruction.
+Landing rings stay at court contact; their number badge moves clear of the HUD, instructions, and point pop.
+The seat-facing +1 pop occupies a separate area during points, uses the game font, and is cleared for
+help, setup, or missing-piece screens. Winning points go straight to the result without a +1 overlay.
+
 ## First minute
 1. A bright blue court, cream markings, and moving ball introduce the game.
 2. The actual Sports art identifies the equipment. Placement earns one outward splash and sound.
@@ -118,3 +130,11 @@ Native feel and uncoached human learning remain unverified until played on actua
 | Ground bounces | First landing rebounds; second landing loses the point | person | Physical playtest correction |
 | Volleys | Allowed before the first ground bounce | person | Confirmed design answer: "Allow volleys" |
 | Dead shot | Point lost after 8 seconds without crossing the net | builder | Prevent a perfectly vertical shot from stalling play |
+
+## Review hardening (October 27, 2026)
+- Continue restores each player's side before binding pieces already on the glass. Saves include stable player IDs so a new session ID after relaunch cannot swap scores; older saves retain their session-ID fallback.
+- A new placement at a free end opens the selector when another roster player is needed. Dismissing it does not reopen it every frame.
+- A receiver can volley on the exact frame the ball crosses the net, but never before the ball enters that player's half. A rapid return rearms the other player even if it crosses back within the same frame.
+- Repeated menu epochs preserve pending piece identities and already confirmed lifts. Duplicate-glyph recovery retains both identities when a valid pairing exists.
+- Pause cancels the pending animation frame, and resume schedules one loop only after startup finishes. Audio initialized while paused stays suspended until resume.
+- Browser in-play scoring labels also meet the 48 px floor; their cards and landing-badge exclusions reserve enough space.

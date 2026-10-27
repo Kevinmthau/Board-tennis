@@ -28,7 +28,8 @@ const NATIVE: Frame[] = [{ cx: 480, cy: 540, angle: Math.PI / 2, native: true, s
 function round(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r = 24) {
   ctx.beginPath(); ctx.roundRect(x, y, w, h, r);
 }
-function text(ctx: CanvasRenderingContext2D, label: string, x: number, y: number, size = 48, color = C.cream, max = Infinity, floor = size >= 48 ? 48 : 32) {
+function text(ctx: CanvasRenderingContext2D, label: string, x: number, y: number, size = 48, color = C.cream, max = Infinity, floor = size >= 48 ? 48 : 32, maxLines = 2) {
+  label = label.replace(/\s+/g, ' ').trim();
   ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   let px = size;
   ctx.font = gameFont(px);
@@ -39,7 +40,7 @@ function text(ctx: CanvasRenderingContext2D, label: string, x: number, y: number
     const next = row ? `${row} ${word}` : word;
     if (ctx.measureText(next).width <= max) { row = next; continue; }
     if (row) { lines.push(row); row = ''; }
-    // Long profile-name components wrap as well; every character stays visible.
+    // Long profile-name components wrap within the same bounded text slot.
     for (const char of word) {
       if (row && ctx.measureText(row + char).width > max) { lines.push(row); row = ''; }
       row += char;
@@ -53,8 +54,18 @@ function text(ctx: CanvasRenderingContext2D, label: string, x: number, y: number
     while (split < label.length - 1 && ctx.measureText(label.slice(split)).width > max) split++;
     lines.splice(0, lines.length, label.slice(0, split).trimEnd(), label.slice(split).trimStart());
   }
-  const leading = px * 1.04;
-  lines.forEach((row, i) => ctx.fillText(row, x, y + (i - (lines.length - 1) / 2) * leading));
+  if (lines.length > maxLines) {
+    lines.length = maxLines;
+    const chars = Array.from(lines[maxLines - 1].trimEnd());
+    while (chars.length && ctx.measureText(chars.join('') + '…').width > max) chars.pop();
+    lines[maxLines - 1] = chars.join('').trimEnd() + '…';
+  }
+  const ink = lines.map(row => ctx.measureText(row));
+  // Accents and descenders can exceed the font's nominal line height.
+  const leading = Math.max(px * 1.12, ...ink.slice(1).map((m, i) => ink[i].actualBoundingBoxDescent + m.actualBoundingBoxAscent + px * .16));
+  const height = (lines.length - 1) * leading + ink[0].actualBoundingBoxAscent + ink[ink.length - 1].actualBoundingBoxDescent;
+  const firstBaseline = y - height / 2 + ink[0].actualBoundingBoxAscent;
+  lines.forEach((row, i) => ctx.fillText(row, x, firstBaseline + i * leading));
 }
 function line(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, color: string, width: number) {
   ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
@@ -90,7 +101,7 @@ function airborneBall(ctx: CanvasRenderingContext2D, x: number, y: number, heigh
   ballShadow(ctx, x, y, radius, height);
   ballBody(ctx, display.x - ox, display.y - oy, display.radius, stretch);
 }
-function groundImpact(ctx: CanvasRenderingContext2D, x: number, y: number, age: number, count: 1 | 2 = 1, facing = 0, badge = true) {
+function groundImpact(ctx: CanvasRenderingContext2D, x: number, y: number, age: number, count: 1 | 2 = 1, facing = 0, badge = true, badgeAt?: { x: number; y: number }) {
   if (age < 0 || age > .8) return;
   const t = age / .8, burst = Math.min(1, age / .42), color = count === 2 ? C.coral : C.lime;
   ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 9 * (1 - t) + 2;
@@ -111,7 +122,7 @@ function groundImpact(ctx: CanvasRenderingContext2D, x: number, y: number, age: 
   if (badge) {
     ctx.globalAlpha = Math.min(1, (1 - t) * 2.5);
     // Keep the landing readable under a rising ball, and keep text inside the glass.
-    ctx.translate(Math.max(88, Math.min(1832, x)), Math.max(88, Math.min(992, y + 90)));
+    ctx.translate(badgeAt?.x ?? Math.max(88, Math.min(1832, x)), badgeAt?.y ?? Math.max(88, Math.min(992, y + 90)));
     ctx.rotate(facing);
     ctx.fillStyle = C.deep; ctx.beginPath(); ctx.arc(0, 0, 35, 0, TAU); ctx.fill();
     ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.stroke();
@@ -223,7 +234,7 @@ function setup(ctx: CanvasRenderingContext2D, v: GameView, f: Frame) {
     const sides: Side[] = f.native ? [f.side!] : [0, 1];
     for (const side of sides) {
       const x = f.native ? 0 : side === 0 ? -390 : 390, s = seatFor(v, side);
-      piece(ctx, s?.glyphId ?? (side === 0 ? 5 : 1), x, -42, f.native ? 230 : 245);
+      piece(ctx, s?.glyphId ?? (side === 0 ? 5 : 1), x, -52, f.native ? 230 : 245);
       text(ctx, s?.name ?? 'PLAYER NEEDED', x, 124, 48, TEAM[side], f.native ? 710 : 650, 32);
       text(ctx, s?.present ? 'READY' : side === 0 ? 'Place at the left end' : 'Place at the right end', x, 187, 32, s?.present ? C.lime : C.faded);
     }
@@ -271,30 +282,57 @@ function help(ctx: CanvasRenderingContext2D, v: GameView, f: Frame) {
 function hud(ctx: CanvasRenderingContext2D, v: GameView) {
   if (v.browser) {
     for (const side of [0, 1] as Side[]) {
-      const x = side === 0 ? 545 : 1375, s = seatFor(v, side);
-      ctx.fillStyle = C.deep; round(ctx, x - 310, 50, 620, 110, 25); ctx.fill();
-      ctx.fillStyle = TEAM[side]; round(ctx, x - 310, 50, 12, 110, 5); ctx.fill();
-      text(ctx, s?.name ?? 'Player', x - 42, 105, 48, TEAM[side], 460);
-      text(ctx, String(v.match.score[side]), x + 238, 105, 76);
+      const x = side === 0 ? 470 : 1450, s = seatFor(v, side);
+      ctx.fillStyle = C.deep; round(ctx, x - 310, 50, 620, 128, 25); ctx.fill();
+      ctx.fillStyle = TEAM[side]; round(ctx, x - 310, 50, 12, 128, 5); ctx.fill();
+      text(ctx, s?.name ?? 'Player', x - 60, 114, 48, TEAM[side], 420);
+      text(ctx, String(v.match.score[side]), x + 228, 114, 76, C.cream, 132, 48, 1);
     }
-    text(ctx, 'FIRST TO 7', 960, 77, 32, C.cream);
-    text(ctx, 'WIN BY 2', 960, 121, 32, C.faded);
+    text(ctx, 'FIRST TO 7', 960, 86, 48, C.cream);
+    text(ctx, 'WIN BY 2', 960, 143, 48, C.faded);
   } else {
     for (const side of [0, 1] as Side[]) {
       ctx.save(); ctx.translate(side === 0 ? 155 : 1765, 540); ctx.rotate(side === 0 ? Math.PI / 2 : -Math.PI / 2);
-      text(ctx, seatFor(v, side)?.name ?? 'Player', 0, 58, 48, TEAM[side], 680);
-      text(ctx, String(v.match.score[side]), 0, -37, 88);
+      text(ctx, seatFor(v, side)?.name ?? 'Player', 0, 45, 48, TEAM[side], 680);
+      text(ctx, String(v.match.score[side]), 0, -60, 88, C.cream, 680, 48, 1);
       ctx.restore();
     }
   }
 }
 function statusText(ctx: CanvasRenderingContext2D, v: GameView, label: string, second?: string) {
   if (v.browser) {
-    text(ctx, label, 960, second ? 950 : 979, 48, C.cream, 1720);
+    text(ctx, label, 960, second ? 950 : 979, 48, C.cream, 1720, 48, 1);
     if (second) text(ctx, second, 960, 1008, 48, C.faded, 1720);
   } else {
     for (const f of NATIVE) at(ctx, f, () => { text(ctx, label, 0, 110, 48, C.cream, 760); if (second) text(ctx, second, 0, 50, 48, C.faded, 760); });
   }
+}
+export function pointPopPosition(side: Side, browser: boolean) {
+  return { x: browser ? side === 0 ? 420 : 1500 : side === 0 ? 640 : 1280, y: 540 };
+}
+function bounceBadgePosition(v: GameView, x: number, y: number) {
+  // Reserve the HUD and instruction slots so a court contact never covers their text.
+  const zones: Box[] = v.browser
+    ? [{ x: 160, y: 48, width: 1600, height: 132 }, { x: 48, y: 920, width: 1824, height: 112 }]
+    : [{ x: 48, y: 160, width: 222, height: 760 }, { x: 1650, y: 160, width: 222, height: 760 },
+      { x: 330, y: 140, width: 145, height: 800 }, { x: 1445, y: 140, width: 145, height: 800 }];
+  if (v.match.phase === 'point' && v.match.pointWinner !== null) {
+    const pop = pointPopPosition(v.match.pointWinner, v.browser);
+    zones.push(v.browser ? { x: pop.x - 110, y: pop.y - 190, width: 220, height: 300 }
+      : { x: pop.x - (v.match.pointWinner === 0 ? 100 : 190), y: pop.y - 110, width: 290, height: 220 });
+  }
+  const clampX = (n: number) => Math.max(88, Math.min(1832, n));
+  const clampY = (n: number) => Math.max(88, Math.min(992, n));
+  const preferred = { x: clampX(x), y: clampY(y + 90) }, pad = 44;
+  const xs = [preferred.x, ...zones.flatMap(z => [clampX(z.x - pad), clampX(z.x + z.width + pad)])];
+  const ys = [preferred.y, ...zones.flatMap(z => [clampY(z.y - pad), clampY(z.y + z.height + pad)])];
+  let best = preferred, distance = Infinity;
+  for (const cx of xs) for (const cy of ys) {
+    if (zones.some(z => cx + pad > z.x && cx - pad < z.x + z.width && cy + pad > z.y && cy - pad < z.y + z.height)) continue;
+    const d = (cx - preferred.x) ** 2 + (cy - preferred.y) ** 2;
+    if (d < distance) { best = { x: cx, y: cy }; distance = d; }
+  }
+  return best;
 }
 function play(ctx: CanvasRenderingContext2D, v: GameView) {
   hud(ctx, v);
@@ -317,10 +355,11 @@ function play(ctx: CanvasRenderingContext2D, v: GameView) {
     ctx.save(); ctx.globalAlpha = .25 + .12 * Math.sin(v.now / 250); ctx.strokeStyle = C.lime; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(m.ball.x, m.ball.y, 29 + 4 * Math.sin(v.now / 250), 0, TAU); ctx.stroke(); ctx.restore();
   }
-  if (m.lastBounce) {
+  if (m.lastBounce && m.lastBounce.age <= .8) {
     const count = m.groundBounces === 2 ? 2 : 1;
     const side = count === 2 ? m.receiver : m.lastBounce.x < 960 ? 0 : 1;
-    groundImpact(ctx, m.lastBounce.x, m.lastBounce.y, m.lastBounce.age, count, v.browser ? 0 : NATIVE[side].angle);
+    groundImpact(ctx, m.lastBounce.x, m.lastBounce.y, m.lastBounce.age, count, v.browser ? 0 : NATIVE[side].angle,
+      !v.missing, bounceBadgePosition(v, m.lastBounce.x, m.lastBounce.y));
   }
   const impactAge = m.lastBounce?.age ?? Infinity;
   if (m.phase !== 'over' && (m.phase !== 'point' || impactAge < .5)) {
@@ -333,15 +372,22 @@ function play(ctx: CanvasRenderingContext2D, v: GameView) {
   if (v.missing) {
     ctx.fillStyle = 'rgba(13,49,44,.55)'; ctx.fillRect(0, 0, 1920, 1080);
     for (const side of [0, 1] as Side[]) {
-      const s = seatFor(v, side); if (s?.present) continue;
+      const s = seatFor(v, side);
       const f = v.browser ? { ...BROWSER, cx: side === 0 ? 550 : 1370 } : NATIVE[side];
-      at(ctx, f, () => { piece(ctx, s?.glyphId ?? 5, 0, -40, 190); text(ctx, 'Return your piece', 0, 126, 48, C.cream, 720); });
+      at(ctx, f, () => {
+        // Keep the native pause heading above the artwork, clear of the return instruction.
+        if (f.native) text(ctx, 'Rally paused', 0, -215, 48, C.cream, 760);
+        if (s?.present) return;
+        piece(ctx, s?.glyphId ?? 5, 0, -40, 190);
+        text(ctx, 'Return your piece', 0, 126, 48, C.cream, 720);
+      });
     }
-    statusText(ctx, v, 'Rally paused'); return;
+    if (v.browser) statusText(ctx, v, 'Rally paused');
+    return;
   }
   if (m.phase === 'serve') {
     const name = seatFor(v, m.server)?.name ?? (m.server === 0 ? 'Left player' : 'Right player');
-    if (v.browser) statusText(ctx, v, `${name} serves`, 'Twist through the ball');
+    if (v.browser) statusText(ctx, v, `SERVE · ${name}`, 'Twist through the ball');
     else for (const f of NATIVE) at(ctx, f, () => {
       text(ctx, f.side === m.server ? 'YOUR SERVE' : 'GET READY', 0, 110, 48);
       if (f.side === m.server) text(ctx, 'Twist through the ball', 0, 50, 48, C.faded, 760);
@@ -368,7 +414,7 @@ function result(ctx: CanvasRenderingContext2D, v: GameView, f: Frame) {
     const side = v.match.winner ?? 0;
     text(ctx, 'MATCH WON', 0, -300, 48, C.faded);
     text(ctx, seatFor(v, side)?.name ?? 'Player', 0, -195, f.native ? 72 : 96, TEAM[side], f.native ? 750 : 1280);
-    text(ctx, `${v.match.score[0]}   —   ${v.match.score[1]}`, 0, -60, f.native ? 112 : 144);
+    text(ctx, `${v.match.score[0]}   —   ${v.match.score[1]}`, 0, -60, f.native ? 112 : 144, C.cream, f.native ? 750 : 1280, 48, 1);
     text(ctx, `Best rally: ${v.match.bestRally} shots`, 0, 93, 40, C.faded);
     text(ctx, 'Another match?', 0, 185, 48);
     button(ctx, f, 'rematch', { x: f.native ? -366 : -450, y: 261, width: f.native ? 350 : 420, height: 120 }, 'REMATCH', true);

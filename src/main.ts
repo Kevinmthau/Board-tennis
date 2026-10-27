@@ -1,17 +1,17 @@
 import './style.css';
 import { Board, BoardContactPhase, BoardContactType, BoardPlayerType, type BoardContact, type BoardPlayer } from '@board.fun/web-sdk';
-import { clientToWorld, createSurface, loadTitleFont, startInput } from './runtime';
+import { clientToWorld, createSurface, gameFont, loadTitleFont, startInput } from './runtime';
 import { loadPieceFootprints, pieceFootprint, frontPoint, type PieceFootprints } from './piece-footprints';
 import { noteContacts, pickPlayer, seated, selectorOpen } from './seats';
 import { PieceTracker, type TrackedPiece } from './tracking';
 import { SwingController, type SwingPose } from './swing';
 import { createMatch, nextServe, canStrike, inOwnHalf, type Side } from './tennis';
 import { advanceRallyFrame, type RallyControl } from './rally-frame';
-import { readMatchSave, SAVE_VERSION, type SavedMatch } from './match-save';
+import { readMatchSave, savedSideForPlayer, SAVE_VERSION, type SavedMatch } from './match-save';
 import { ballDisplay } from './ball-display';
 import { Splashes, Particles, Trail, PopTexts } from './fx';
 import { hit } from './howto';
-import { drawGame, loadGameArt, BUTTONS, type GameView, type RacketView } from './view';
+import { drawGame, loadGameArt, pointPopPosition, BUTTONS, type GameView, type RacketView } from './view';
 import { sound, startAmbience } from './sound';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
@@ -31,7 +31,8 @@ const setupLiftRequired = new Map<number, boolean>();
 const splashes = new Splashes(), particles = new Particles(180), pops = new PopTexts();
 const trail = new Trail({ color: '#e9f583', width: 14, life: .2, glow: false });
 let taps: { x: number; y: number }[] = [];
-let running = true, last = 0, rosterAt = -Infinity, savedAt = 0;
+let running = true, initialized = false, frameId: number | null = null;
+let last = 0, rosterAt = -Infinity, savedAt = 0;
 let saved: SavedMatch | null = null;
 let continuing = false, pendingSelector = false, placementCount = 0;
 const browser = !!(window as any).BoardSDK?.__simulated;
@@ -43,7 +44,8 @@ function syncRoster() {
   const before = seats;
   seats = seated().filter(p => p.type !== BoardPlayerType.AI).slice(0, 2).map(player => {
     const old = before.find(s => s.player.sessionId === player.sessionId);
-    return old ? { ...old, player } : { player, side: null, pieceId: null };
+    const restoredSide = continuing && saved ? savedSideForPlayer(saved, player) : undefined;
+    return old ? { ...old, player } : { player, side: restoredSide ?? null, pieceId: null };
   });
   for (const p of tracker.identities) if (!seats.some(s => s.player.sessionId === p.owner)) p.owner = null;
   if (mode === 'setup') bindPieces();
@@ -80,19 +82,21 @@ function bindPieces() {
 function save() {
   if (mode !== 'play' && mode !== 'over') return;
   BoardPlatform.state.save({ version: SAVE_VERSION, match: JSON.parse(JSON.stringify(match)),
-    sides: seats.filter(s => s.side !== null).map(s => ({ sessionId: s.player.sessionId, side: s.side! })) });
+    sides: seats.filter(s => s.side !== null).map(s => ({ sessionId: s.player.sessionId, playerId: s.player.playerId, side: s.side! })) });
 }
 function readSave() {
   saved = readMatchSave(BoardPlatform.state.load());
 }
 function enterSetup(restore = false) {
   mode = 'setup'; continuing = restore;
-  resetSwings(); trail.clear();
-  syncRoster();
+  resetSwings(); trail.clear(); pops.clear();
   if (restore && saved) {
     match = JSON.parse(JSON.stringify(saved.match));
-    for (const s of seats) s.side = saved.sides.find(p => p.sessionId === s.player.sessionId)?.side ?? s.side;
+    // Restore sides before binding physical pieces, including players who rejoin later.
+    for (const p of tracker.identities) p.owner = null;
+    seats = [];
   } else match = createMatch();
+  syncRoster();
   bindPieces();
 }
 function rematch() { match = createMatch(); continuing = false; mode = 'setup'; resetSwings(); trail.clear(); }
@@ -101,7 +105,7 @@ function changeSetup() {
   seats.forEach(s => { s.side = null; s.pieceId = null; });
   enterSetup();
 }
-function openHelp() { if (mode === 'help') return; helpReturn = mode; mode = 'help'; resetSwings(); }
+function openHelp() { if (mode === 'help') return; helpReturn = mode; mode = 'help'; resetSwings(); pops.clear(); }
 function closeHelp() { mode = helpReturn; resetSwings(); }
 
 startInput((batch, active) => {
@@ -137,7 +141,10 @@ function scoreMoment() {
   if (side === null) return;
   const x = side === 0 ? 420 : 1500;
   particles.burst(x, 540, { count: match.phase === 'over' ? 70 : 36, color: side === 0 ? '#ff997c' : '#fff0c6', speed: 280, life: .9, glow: false });
-  pops.pop(x, 540, '+1', { size: 96, color: '#fff0c6', face: browser ? 'bottom' : side === 0 ? 'left' : 'right' });
+  if (match.phase !== 'over') {
+    const at = pointPopPosition(side, browser);
+    pops.pop(at.x, at.y, '+1', { size: 96, font: gameFont(96), color: '#fff0c6', face: browser ? 'bottom' : side === 0 ? 'left' : 'right' });
+  }
   sound(match.phase === 'over' ? 'win' : 'point');
   resetSwings(); trail.clear(); save();
 }
@@ -155,6 +162,10 @@ function update(now: number, dt: number) {
   }
   if (mode === 'setup' || mode === 'play' || mode === 'over') bindPieces();
   if (mode === 'setup' && now - rosterAt > 1000) { syncRoster(); rosterAt = now; }
+  if (mode === 'setup' && seats.length < 2 && changed.arrivals.some(p => {
+    const side = sideAt(p);
+    return side !== null && !seats.some(s => s.side === side) && !seats.some(s => s.side === null);
+  })) void addPlayer();
   const tapped = (key: keyof typeof BUTTONS) => BUTTONS[key].some(b => taps.some(p => hit(b, p.x, p.y)));
   if (mode === 'title') {
     if (tapped('play')) enterSetup();
@@ -167,7 +178,7 @@ function update(now: number, dt: number) {
     if (tapped('leftPlayer')) { const s = seats.find(s => s.side === 0) ?? seats[0]; void addPlayer(s?.player.sessionId); }
     if (tapped('rightPlayer')) { const s = seats.find(s => s.side === 1); void addPlayer(s?.player.sessionId); }
     if (tapped('help')) openHelp();
-    if (ready()) { mode = match.phase === 'over' && continuing ? 'over' : 'play'; resetSwings(); save(); }
+    if (mode === 'setup' && ready()) { mode = match.phase === 'over' && continuing ? 'over' : 'play'; resetSwings(); save(); }
   } else if (mode === 'over') {
     if (tapped('rematch')) rematch();
     else if (tapped('setup')) changeSetup();
@@ -194,7 +205,7 @@ function update(now: number, dt: number) {
       if (match.phase === 'point' && nextServe(match)) { resetSwings(); trail.clear(); save(); }
       if (match.phase === 'rally') { const visibleBall = ballDisplay(match.ball); trail.push(visibleBall.x, visibleBall.y); }
       if (match.phase === 'over') { mode = 'over'; save(); }
-    } else resetSwings();
+    } else { resetSwings(); pops.clear(); }
   }
   splashes.update(dt); particles.update(dt); trail.update(dt); pops.update(dt);
   if (now - savedAt > 500) { save(); savedAt = now; }
@@ -212,14 +223,22 @@ Object.defineProperty(window, 'TwistTennisState', { configurable: true, get: () 
   placementCount, running,
 })) });
 const frame = (now: number) => {
+  frameId = null;
   if (!running) return;
   const dt = Math.min(.05, last ? (now - last) / 1000 : 0); last = now;
-  update(now, dt); drawGame(ctx, view(now)); requestAnimationFrame(frame);
+  update(now, dt); drawGame(ctx, view(now)); scheduleFrame();
 };
-Board.application.onPause(() => { running = false; save(); });
+function scheduleFrame() {
+  if (initialized && running && frameId === null) frameId = requestAnimationFrame(frame);
+}
+Board.application.onPause(() => {
+  running = false;
+  if (frameId !== null) cancelAnimationFrame(frameId);
+  frameId = null; save();
+});
 Board.application.onResume(() => {
   tracker.resumed(performance.now()); resetSwings();
-  if (!running) { running = true; last = 0; requestAnimationFrame(frame); }
+  if (!running) { running = true; last = 0; scheduleFrame(); }
 });
 void (async () => {
   await BoardPlatform.state.ready();
@@ -229,5 +248,5 @@ void (async () => {
   [footprints] = await Promise.all([loadPieceFootprints(), loadTitleFont(), loadGameArt()]);
   BoardPlatform.menu.setButtons([{ id: 'help', title: 'How to play', icon: 'square' }, { id: 'setup', title: 'Change setup', icon: 'left_arrow' }]);
   BoardPlatform.menu.onButton(id => { if (id === 'help') openHelp(); if (id === 'setup') changeSetup(); });
-  startAmbience(); requestAnimationFrame(frame);
+  startAmbience(); initialized = true; scheduleFrame();
 })();

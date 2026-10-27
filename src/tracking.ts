@@ -25,11 +25,18 @@ export class PieceTracker {
   }
 
   paused(now: number): void {
+    // A second menu may open before the first one's contacts return. Keep those
+    // pending identities too; their temporary absence is still the same epoch gap.
+    const recovering = this.pausedState || now <= this.resumeUntil;
+    this.pauseCandidates = new Set(this.identities
+      .filter(p => p.present || (recovering && this.pauseCandidates.has(p.id))).map(p => p.id));
     this.pausedState = true; this.resumeUntil = -Infinity;
     this.flapping.clear();
-    this.pauseCandidates = new Set(this.identities.filter(p => p.present).map(p => p.id));
     for (const p of this.identities) {
-      p.present = false; p.missingSince = now; p.lifted = false; p.epoch++;
+      // Only menu-hidden pieces get a fresh gap. A lift confirmed before the
+      // menu must keep the rally paused until that piece actually returns.
+      if (this.pauseCandidates.has(p.id)) { p.missingSince = now; p.lifted = false; }
+      p.present = false; p.epoch++;
       // Contact IDs are invalid across the epoch, even if the host reuses a number.
       p.contactId = -1;
     }
@@ -71,10 +78,35 @@ export class PieceTracker {
         && (now - p.lastSeen <= TRACKING.rebindMs || this.pauseCandidates.has(p.id)))
       .map(p => ({ p, c, distance: distance(p, c) })))
       .sort((a, b) => a.distance - b.distance || a.p.id - b.p.id || a.c.contactId - b.c.contactId);
-    const recovered = new Set<number>();
-    for (const { p, c } of candidates) {
-      if (claimed.has(c.contactId) || recovered.has(p.id)) continue;
-      claimed.add(c.contactId); recovered.add(p.id); this.pauseCandidates.delete(p.id);
+    const matches = new Map<number, typeof candidates[number]>();
+    const matchedContacts = new Set<number>();
+    const options = new Map<number, typeof candidates>();
+    for (const pair of candidates) {
+      const list = options.get(pair.c.contactId) ?? [];
+      list.push(pair); options.set(pair.c.contactId, list);
+      if (matchedContacts.has(pair.c.contactId) || matches.has(pair.p.id)) continue;
+      matches.set(pair.p.id, pair); matchedContacts.add(pair.c.contactId);
+    }
+    // Nearest-first alone can strand one duplicate even when both identities can
+    // recover. Reroute a chosen pair only when doing so recovers another piece.
+    const recover = (contactId: number, visited: Set<number>): boolean => {
+      const list = options.get(contactId) ?? [];
+      for (const pair of list) if (!visited.has(pair.p.id) && !matches.has(pair.p.id)) {
+        matches.set(pair.p.id, pair); return true;
+      }
+      for (const pair of list) {
+        if (visited.has(pair.p.id)) continue;
+        visited.add(pair.p.id);
+        const prior = matches.get(pair.p.id)!;
+        if (recover(prior.c.contactId, visited)) { matches.set(pair.p.id, pair); return true; }
+      }
+      return false;
+    };
+    for (const contactId of options.keys()) if (!matchedContacts.has(contactId) && recover(contactId, new Set())) {
+      matchedContacts.add(contactId);
+    }
+    for (const { p, c } of matches.values()) {
+      claimed.add(c.contactId); this.pauseCandidates.delete(p.id);
       observe(p, c); p.epoch++; result.recovered.push(p);
     }
     for (const c of contacts) {

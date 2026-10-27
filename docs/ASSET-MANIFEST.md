@@ -20,3 +20,12 @@
 Sports model SHA-256: `4d75343e149b72f8410cad10f518c64791634ae6e6932880088a34c164026ad9`.
 
 The browser adapters draw virtual controller outlines only in the web build. They are excluded from the native package.
+
+October 27, 2026 pause-overlay fix: only procedural layout in `src/view.ts` changed; no media was added or modified.
+Verification screenshots and the render harness in `artifacts/` are local evidence and are not shipped.
+
+October 27, 2026 all-screen audit: bounded text layout and badge placement remain procedural in `src/view.ts`.
+Point-pop placement/lifecycle in `src/main.ts` uses the existing Kabel font and `src/fx.ts`; no media was added.
+
+October 27, 2026 code review: runtime, tracking, seating/save flow, swing resolution, and procedural HUD layout changed.
+No media assets or third-party dependencies were added or changed. New test files are verification source and are not shipped in the game packages.

@@ -176,3 +176,64 @@ test('volleys hit the lifted visible ball, not its shadow, and keep the ground p
   assert.equal(miss.hit, null, 'swinging only through the shadow cannot hit an airborne ball');
   assert.equal(shadow.lastHitter, 0);
 });
+
+test('a receiver can volley during the frame that first crosses the net', () => {
+  for (const side of [0, 1] as const) {
+    const server = side === 0 ? 1 : 0;
+    const match = createMatch(server);
+    strike(match, server, { vx: side === 0 ? -1000 : 1000, vy: 0 });
+    match.ball = { x: side === 0 ? 970 : 950, y: 540, z: 0,
+      vx: side === 0 ? -1000 : 1000, vy: 0, vz: 20 };
+    match.gravity = 2;
+    const controller = new SwingController();
+    const x = side === 0 ? 800 : 1120;
+    const control: RallyControl = { side, pose: pose(side === 0 ? 10 : 170, x, 540), controller };
+    assert.equal(advanceRallyFrame(match, 0, 0, [control]).hit, null);
+    control.pose = pose(side === 0 ? -10 : 190, x, 540);
+    const result = advanceRallyFrame(match, .05, 50, [control]);
+    assert.ok(result.hit, 'the receiver was observed before the crossing and can swing immediately');
+    assert.equal(match.lastHitter, side);
+    assert.ok(result.hit.shot.contactTimeMs > 10, 'overlap on the hitter side cannot consume the return');
+    assert.ok(side === 0 ? result.hit.at.x < 960 : result.hit.at.x > 960);
+    assert.equal(result.point, false);
+  }
+});
+
+test('observing an incoming receiver never turns early overlap or a held line into a return', () => {
+  for (const crosses of [false, true]) {
+    const match = createMatch(); strike(match, 0, { vx: 1000, vy: 0 });
+    match.ball = { x: crosses ? 950 : 900, y: 540, z: 0, vx: 1000, vy: 0, vz: 20 };
+    match.gravity = 2;
+    const control: RallyControl = { side: 1, pose: pose(180, 1120, 540), controller: new SwingController() };
+    advanceRallyFrame(match, 0, 0, [control]);
+    control.pose = pose(crosses ? 180 : 190, 1120, 540);
+    const result = advanceRallyFrame(match, .05, 50, [control]);
+    assert.equal(result.hit, null, crosses ? 'a held line still needs a deliberate twist' : 'the ball has not crossed');
+    assert.equal(match.lastHitter, 0); assert.equal(match.crossedNet, crosses);
+  }
+});
+
+test('a return crossing back in the same frame rearms the opponent for the next volley', () => {
+  for (const reverseControls of [false, true]) {
+    const match = createMatch(1); strike(match, 1, { vx: -1000, vy: 0 });
+    match.ball = { x: 950, y: 540, z: 0, vx: -1000, vy: 0, vz: 20 };
+    match.crossedNet = true; match.gravity = 2;
+    const left = new SwingController(), right = new SwingController();
+    left.update(pose(270, 950, 710), ballDisplay(match.ball), 0);
+    const previousTarget = { x: 1035, y: 650 - 170 * Math.sin(Math.PI / 3) };
+    right.update(pose(240, 1120, 650), previousTarget, -16);
+    assert.ok(right.update(pose(244, 1120, 650), previousTarget, 0));
+    assert.equal(right.status, 'spent', 'the right player has hit the incoming shot');
+    const receiving: RallyControl = { side: 1, pose: pose(250, 1120, 650), controller: right };
+    const controls: RallyControl[] = [
+      { side: 0, pose: pose(290, 950, 710), controller: left }, receiving,
+    ];
+    if (reverseControls) controls.reverse();
+    assert.equal(advanceRallyFrame(match, .05, 50, controls).hit?.side, 0);
+    assert.equal(match.crossedNet, true, 'the new shot has already returned to the right half');
+    assert.equal(right.status, 'ready', 'the prior possession lock is released regardless of controller order');
+    receiving.pose = pose(215, 1120, 650);
+    assert.equal(advanceRallyFrame(match, .05, 100, controls).hit?.side, 1);
+    assert.equal(match.rally, 3);
+  }
+});

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createMatch, strike, stepMatch } from '../src/tennis';
-import { readMatchSave, SAVE_VERSION } from '../src/match-save';
+import { readMatchSave, savedSideForPlayer, SAVE_VERSION } from '../src/match-save';
 
 const sides = [{ sessionId: 11, side: 0 }, { sessionId: 22, side: 1 }];
 
@@ -40,4 +40,30 @@ test('corrupt flight state cannot introduce NaN physics after restore', () => {
   }
   assert.equal(readMatchSave({ version: SAVE_VERSION, sides, match: { ...match, gravity: 0 } }), null);
   assert.equal(readMatchSave({ version: SAVE_VERSION, sides, match: { ...match, groundBounces: 3 } }), null);
+});
+
+test('saved players keep their sides after load assigns fresh or reused session IDs', () => {
+  const sides = [{ sessionId: 11, playerId: 'left-profile', side: 0 }, { sessionId: 22, playerId: 'right-profile', side: 1 }];
+  const restored = readMatchSave({ version: SAVE_VERSION, match: createMatch(), sides });
+  assert.ok(restored); assert.deepEqual(restored.sides, sides);
+  assert.equal(savedSideForPlayer(restored, { sessionId: 101, playerId: 'left-profile' }), 0);
+  assert.equal(savedSideForPlayer(restored, { sessionId: 11, playerId: 'right-profile' }), 1,
+    'stable identity takes priority over another saved player\'s former session ID');
+  assert.equal(savedSideForPlayer(restored, { sessionId: 22, playerId: 'new-profile' }), undefined,
+    'a reused session ID cannot inherit a different identified player\'s side');
+});
+
+test('legacy saves retain their session-ID fallback without requiring player IDs', () => {
+  for (const version of [1, SAVE_VERSION]) {
+    const restored = readMatchSave({ version, match: createMatch(), sides });
+    assert.ok(restored); assert.deepEqual(restored.sides, sides);
+    assert.equal(savedSideForPlayer(restored, { sessionId: 22, playerId: 'returning-profile' }), 1);
+    assert.equal(savedSideForPlayer(restored, { sessionId: 101, playerId: 'returning-profile' }), undefined);
+  }
+});
+
+test('malformed stable identities are rejected rather than falling back to a reused session ID', () => {
+  for (const playerId of ['', null, 42, {}]) {
+    assert.equal(readMatchSave({ version: SAVE_VERSION, match: createMatch(), sides: [{ sessionId: 11, side: 0, playerId }] }), null);
+  }
 });

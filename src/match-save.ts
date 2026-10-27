@@ -1,10 +1,16 @@
 import { createMatch, type Match, type Side } from './tennis';
 
 export const SAVE_VERSION = 2;
-export interface SavedMatch { match: Match; sides: { sessionId: number; side: Side }[] }
+export interface SavedMatch { match: Match; sides: { sessionId: number; playerId?: string; side: Side }[] }
 const side = (value: unknown): value is Side => value === 0 || value === 1;
 const nonnegative = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 const count = (value: unknown): value is number => nonnegative(value) && Number.isInteger(value);
+
+/** Save loads can assign new session IDs. Keep a returning profile on its saved side. */
+export function savedSideForPlayer(saved: SavedMatch | null, player: { sessionId: number; playerId: string }): Side | undefined {
+  return saved?.sides.find(s => s.playerId === player.playerId)?.side
+    ?? saved?.sides.find(s => s.playerId === undefined && s.sessionId === player.sessionId)?.side;
+}
 
 /** Keep scores from the original wall-bounce game, restarting its active rally as a serve. */
 export function readMatchSave(value: unknown): SavedMatch | null {
@@ -13,8 +19,10 @@ export function readMatchSave(value: unknown): SavedMatch | null {
   if (![1, SAVE_VERSION].includes(raw.version) || !m || !Array.isArray(m.score) || m.score.length !== 2
     || !m.score.every(count) || !['serve', 'rally', 'point', 'over'].includes(m.phase)
     || !side(m.server) || !side(m.receiver) || !count(m.bestRally)
-    || !Array.isArray(raw.sides) || !raw.sides.every((s: any) => s && Number.isFinite(s.sessionId) && side(s.side))) return null;
-  const sides = raw.sides.map((s: any) => ({ sessionId: s.sessionId, side: s.side }));
+    || !Array.isArray(raw.sides) || !raw.sides.every((s: any) => s && Number.isFinite(s.sessionId) && side(s.side)
+      && (s.playerId === undefined || typeof s.playerId === 'string' && s.playerId.length > 0))) return null;
+  const sides = raw.sides.map((s: any) => ({ sessionId: s.sessionId, side: s.side,
+    ...(s.playerId === undefined ? {} : { playerId: s.playerId }) }));
   if (raw.version === 1) {
     const match = createMatch(m.phase === 'rally' ? m.receiver : m.server);
     match.score = [m.score[0], m.score[1]]; match.bestRally = m.bestRally;
