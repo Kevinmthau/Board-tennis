@@ -25,11 +25,13 @@
 - Players stay in their half. The physical pose is never moved or clamped by game logic.
 - The center net is a visual separator. This arcade prototype has no net-height faults, double faults, or sets.
 - The whole 1920×1080 screen is the court. All four Board walls rebound the ball without a penalty.
-- Every shot rises and falls in a ballistic arc. A changing ball size and displaced shadow show its height without moving the visible strike target.
+- Every shot rises and falls in a ballistic arc. The ball visibly lifts above its shadow, which stays on the court.
+- Racket contact and the ball trail use the same projected position as the visible ball. Players aim at the ball, not the shadow.
 - The first ground landing rebounds. The second ground landing without a return loses the point for the receiver.
 - Volleys are allowed. A racket return resets the ground-bounce count. Wall rebounds do not count as ground bounces.
 - A backward shot can bank off the hitter's own wall before crossing the net. Flight timing targets the receiving half.
-- Flight and planar motion slow together near the receiver. Ground contact adds a short ring, squash, and bounce sound.
+- Flight and planar motion slow together near the receiver. Ground contact adds a bold double ring, radial marks, a numbered badge, and a short squash.
+- The landing badge shows 1 or 2 for 0.8 seconds. A crisp contact sound precedes the point chime.
 - A shot must cross the net within 8 seconds. Otherwise, the hitter loses the point. This prevents a vertical shot bouncing forever.
 - The line does not silently correct shot direction.
 - After a point, the conceding player receives a stationary serve ball. Their next twist begins the rally.

@@ -1,5 +1,6 @@
 import { canStrike, inOwnHalf, stepMatch, strike, type Match, type Side, type MotionPoint } from './tennis';
 import { type Point, type SwingHit, type SwingPose, SwingController } from './swing';
+import { ballDisplay } from './ball-display';
 
 export interface RallyControl { side: Side; pose: SwingPose | null; controller: SwingController }
 export interface RallyFrameResult {
@@ -22,8 +23,8 @@ export function advanceRallyFrame(match: Match, dt: number, now: number,
   stepMatch(preview, duration, trace);
   const exited = match.phase === 'rally' && (preview.phase === 'point' || preview.phase === 'over');
   const path = trace.length
-    ? trace.map(p => ({ x: p.x, y: p.y, timeMs: now - duration * 1000 + p.time * 1000 }))
-    : [{ x: preview.ball.x, y: preview.ball.y, timeMs: now }];
+    ? trace.map(p => ({ ...ballDisplay(p), timeMs: now - duration * 1000 + p.time * 1000 }))
+    : [{ ...ballDisplay(preview.ball), timeMs: now }];
   // A boundary preview has already changed phase. Eligibility belongs to the incoming rally.
   const eligible = exited ? { ...preview, phase: match.phase } : preview;
   for (const { side, pose, controller } of controls) {
@@ -35,11 +36,12 @@ export function advanceRallyFrame(match: Match, dt: number, now: number,
     if (exited && contactElapsed >= (trace.at(-1)?.time ?? 0) - 1e-9) continue;
     const returned = copyMatch(match);
     stepMatch(returned, contactElapsed);
-    returned.ball.x = shot.contactPosition.x; returned.ball.y = shot.contactPosition.y;
+    // Sweep points are the lifted visible ball. Keep its stepped ground position and height
+    // for the outgoing arc; copying the visible y here would teleport the landing path.
     if (returned.phase === 'rally' && inOwnHalf(side, returned.ball.x)) returned.crossedNet = true;
     if (!strike(returned, side, shot)) {
       // A contact before a newly crossed net is not a legal return and cannot consume possession.
-      controller.reset(); controller.update(pose, preview.ball, now, enabled);
+      controller.reset(); controller.update(pose, ballDisplay(preview.ball), now, enabled);
       continue;
     }
     result.hit = { side, shot, at: { ...shot.contactPosition } };

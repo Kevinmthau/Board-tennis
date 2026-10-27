@@ -25,6 +25,7 @@ Both players' controls work at the same time. Mouse and touch also work: drag a 
 - The ball leaves sideways from the line. Faster rotation hits harder. Both twist directions work.
 - Incoming shots slow near the receiver to give time for a return.
 - Each shot rises and falls in an arc. Its first ground bounce rebounds; its second ground bounce loses the point for the receiver.
+- Aim at the raised ball, not its court shadow. Each landing flashes a numbered mark and makes a crisp bounce sound.
 - You can volley before the first bounce or return after it. Every racket return resets the ground-bounce count.
 - All four walls rebound the ball without counting as ground bounces. A backwards shot can bank off the hitter's wall.
 - A shot must cross the net within eight seconds. This stops a vertical shot from bouncing forever.

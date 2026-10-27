@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Board,BoardContactPhase,BoardContactType,BoardPlayerType,type BoardContact} from '@board.fun/web-sdk';
 import type {Match,Side} from '../src/tennis';
+import {ballDisplay} from '../src/ball-display';
 
 // An assembled-game walk. Only normal SDK contact batches, clock ticks and menu callbacks
 // control the game. The public snapshot is read-only evidence, never a test back door.
@@ -151,7 +152,7 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
   }
 
   until(s=>s.match.crossedNet&&s.match.ball.x>=1380,'serve reaches the right receiver');
-  let b=snapshot().match.ball;
+  let b=ballDisplay(snapshot().match.ball);
   move(1,{x:b.x+5,y:b.y-170,orientation:90});tick();
   assert.equal(snapshot().match.rally,1,'sliding the receiving line over the moving ball is not a hit');
   move(1,{orientation:92});tick();
@@ -159,7 +160,7 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
   move(0,{orientation:270});tick(); // prepare the next swing while the ball is still far away
 
   until(s=>s.match.crossedNet&&s.match.ball.x<=580,'return reaches the left receiver');
-  b=snapshot().match.ball;move(0,{x:b.x-5,y:b.y+170,orientation:270});tick();
+  b=ballDisplay(snapshot().match.ball);move(0,{x:b.x-5,y:b.y+170,orientation:270});tick();
   assert.equal(snapshot().match.rally,2);move(0,{orientation:272});tick();
   assert.equal(snapshot().match.lastHitter,0);assert.equal(snapshot().match.rally,3);assert.ok(snapshot().match.ball.vx>0);
   until(s=>s.match.groundBounces===1,'the missed return lands once and rebounds');
@@ -185,7 +186,7 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
     assert.equal(snapshot().match.phase,'rally');assert.equal(snapshot().match.lastHitter,1);assert.ok(snapshot().match.ball.vx<0);
     move(0,{orientation:270});tick(); // prepare at the opposite end while the serve is far away
     until(s=>s.match.crossedNet&&s.match.ball.x<=580,`serve ${expected} reaches the left receiver`);
-    b=snapshot().match.ball;move(0,{x:b.x-5,y:b.y+170,orientation:270});tick();
+    b=ballDisplay(snapshot().match.ball);move(0,{x:b.x-5,y:b.y+170,orientation:270});tick();
     move(0,{orientation:272});tick();
     assert.equal(snapshot().match.lastHitter,0);assert.equal(snapshot().match.rally,2);
     assert.equal(snapshot().match.groundBounces,0,'a fresh return resets the ground-bounce count');

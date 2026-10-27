@@ -1,6 +1,6 @@
 /** The putt-putt forehead line adapted to a live tennis ball.
  * Placement and sliding never hit. Both the racket and moving ball are swept for contact. */
-export interface Point { x: number; y: number }
+export interface Point { x: number; y: number; radius?: number }
 export interface TimedPoint extends Point { timeMs: number }
 export interface SwingPose extends Point { facingDeg: number; frontReach: number }
 export interface SwingHit {
@@ -17,7 +17,9 @@ export const SWING = {
 const norm = (a: number) => ((a % 360) + 360) % 360;
 export const shortAngleDelta = (a: number, b: number) => ((a - b + 540) % 360 + 360) % 360 - 180;
 const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
-const finitePoint = (p: Point) => Number.isFinite(p.x) && Number.isFinite(p.y);
+const finitePoint = (p: Point) => Number.isFinite(p.x) && Number.isFinite(p.y)
+  && (p.radius === undefined || (Number.isFinite(p.radius) && p.radius >= 0));
+const ballRadius = (p: Point) => p.radius ?? SWING.ballRadius;
 const finite = (p: SwingPose) => finitePoint(p) && Number.isFinite(p.facingDeg)
   && Number.isFinite(p.frontReach) && p.frontReach >= 0 && p.frontReach < SWING.clubLength;
 export function ballSpeedForTwist(degreesPerSecond: number): number {
@@ -47,7 +49,6 @@ export function sweptClubIntersection(previous: SwingPose, current: SwingPose, b
   const delta = shortAngleDelta(current.facingDeg, previous.facingDeg);
   if (!finite(previous) || !finite(current) || !finitePoint(ball) || !finitePoint(previousBall)
     || Math.abs(delta) < 1e-8) return null;
-  const radius = SWING.ballRadius + SWING.clubWidth / 2;
   const poseAt = (t: number): SwingPose => ({
     x: previous.x + (current.x - previous.x) * t,
     y: previous.y + (current.y - previous.y) * t,
@@ -57,11 +58,16 @@ export function sweptClubIntersection(previous: SwingPose, current: SwingPose, b
   const ballAt = (t: number): Point => ({
     x: previousBall.x + (ball.x - previousBall.x) * t,
     y: previousBall.y + (ball.y - previousBall.y) * t,
+    radius: ballRadius(previousBall) + (ballRadius(ball) - ballRadius(previousBall)) * t,
   });
-  const touches = (t: number) => clubDistance(poseAt(t), ballAt(t)) <= radius;
+  const touches = (t: number) => {
+    const target = ballAt(t);
+    return clubDistance(poseAt(t), target) <= ballRadius(target) + SWING.clubWidth / 2;
+  };
   if (touches(0)) return { angle: norm(previous.facingDeg), fraction: 0, position: { ...previousBall } };
   const steps = Math.max(1, Math.ceil(Math.abs(delta) / 2),
-    Math.ceil((distance(previous, current) + distance(previousBall, ball)) / 4));
+    Math.ceil((distance(previous, current) + distance(previousBall, ball)
+      + Math.abs(ballRadius(ball) - ballRadius(previousBall))) / 4));
   for (let i = 1; i <= steps; i++) {
     if (!touches(i / steps)) continue;
     let lo = (i - 1) / steps, hi = i / steps;

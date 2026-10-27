@@ -8,6 +8,7 @@ import { SwingController, type SwingPose } from './swing';
 import { createMatch, nextServe, canStrike, inOwnHalf, type Side } from './tennis';
 import { advanceRallyFrame, type RallyControl } from './rally-frame';
 import { readMatchSave, SAVE_VERSION, type SavedMatch } from './match-save';
+import { ballDisplay } from './ball-display';
 import { Splashes, Particles, Trail, PopTexts } from './fx';
 import { hit } from './howto';
 import { drawGame, loadGameArt, BUTTONS, type GameView, type RacketView } from './view';
@@ -191,7 +192,7 @@ function update(now: number, dt: number) {
       }
       if (result.point) scoreMoment();
       if (match.phase === 'point' && nextServe(match)) { resetSwings(); trail.clear(); save(); }
-      if (match.phase === 'rally') trail.push(match.ball.x, match.ball.y);
+      if (match.phase === 'rally') { const visibleBall = ballDisplay(match.ball); trail.push(visibleBall.x, visibleBall.y); }
       if (match.phase === 'over') { mode = 'over'; save(); }
     } else resetSwings();
   }

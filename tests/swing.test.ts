@@ -51,6 +51,14 @@ test('relative sweep catches a moving ball that crosses the line entirely betwee
   assert.ok(sweptClubContact(pose(-2), pose(2), { x: 200, y: 90 }, { x: 200, y: -90 }) !== null);
 });
 
+test('a racket catches the visible edge of an enlarged airborne ball', () => {
+  const target = { x: 200, y: 27 };
+  assert.equal(sweptClubContact(pose(-2), pose(0), target), null, 'the default 18 px ball misses this line');
+  assert.notEqual(sweptClubContact(pose(-2), pose(0), { ...target, radius: 27 }), null,
+    'the displayed 27 px edge is a real contact');
+  assert.equal(sweptClubContact(pose(-2), pose(0), { ...target, radius: NaN }), null);
+});
+
 test('ball motion alone and sliding alone cannot create a strike', () => {
   const still = new SwingController(); still.update(pose(0), { x: 200, y: -90 }, 0);
   assert.equal(still.update(pose(0), { x: 200, y: 90 }, 80), null);

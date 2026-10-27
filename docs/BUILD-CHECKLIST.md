@@ -31,3 +31,12 @@
 - [x] Browser first bounce and second-bounce point visually verified.
 - [x] Updated package installed and launched on KT's Board; stored state restored.
 - [ ] Updated ground-bounce feel tested by two people with Sports pieces.
+
+## Clearer flight and impact
+
+- [x] Ball visibly rises above its court shadow; collision and trail follow the displayed ball.
+- [x] Landing uses bold rings, radial marks, a numbered badge, squash, and distinct audio.
+- [x] 148 tests pass; typecheck, web build, and native package pass.
+- [x] Browser arc, first landing marker, second-bounce score, and help checked.
+- [x] Updated package launched on KT's Board; title screen and startup logs verified.
+- [ ] Players confirm the arc and court contact are clear on the physical Board.

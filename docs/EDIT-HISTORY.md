@@ -33,3 +33,11 @@ Each return starts a fresh arc and resets the count. The person confirmed that v
 Height changes the ball's apparent size and shadow. Ground contact adds a brief ring, squash, and sound.
 Old saves keep scores and players, restarting an old rally at a serve. New saves include flight and bounce state.
 Verified 143 passing tests and the browser's two-bounce point. Installed the update on KT's Board with the same app identity.
+
+## October 27, 2026 — Clearer arcs and court contact
+The person reported that the arc and bounces were still hard to see.
+The ball now visibly rises above a shadow anchored to the court. Its trail and racket collision follow the same visible position.
+The visible ball edge counts as contact, including its increased size while airborne. The court path and bounce timing stay unchanged.
+Each landing produces two bold rings, radial marks, a numbered badge, and a stronger squash.
+The bounce has a crisp attack and low thump. Point chimes start after the contact sound.
+Verified 148 passing tests and the browser's raised ball and numbered landing. Installed and launched the update on KT's Board.

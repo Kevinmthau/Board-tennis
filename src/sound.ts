@@ -9,10 +9,13 @@ function tone(frequency: number, duration: number, delay = 0, volume = .08) {
 }
 export function sound(kind: Sound, power = 600) {
   if (kind === 'hit') { tone(280 + power * .15, .075, 0, .15); tone(110, .045, 0, .06); }
-  if (kind === 'bounce') { tone(170, .095, 0, .12); tone(85, .06, .012, .05); }
+  if (kind === 'bounce') {
+    // A crisp contact followed by a low court thump, distinct from the racket's pop.
+    tone(920, .028, 0, .13); tone(185, .13, .008, .18); tone(90, .085, .018, .075);
+  }
   if (kind === 'place') { tone(210, .14); tone(440, .16, .06, .035); }
-  if (kind === 'point') [440, 554, 660].forEach((n, i) => tone(n, .22, i * .09));
-  if (kind === 'win') [440, 554, 660, 880].forEach((n, i) => tone(n, .5, i * .14));
+  if (kind === 'point') [440, 554, 660].forEach((n, i) => tone(n, .22, .12 + i * .09));
+  if (kind === 'win') [440, 554, 660, 880].forEach((n, i) => tone(n, .5, .12 + i * .14));
 }
 export function startAmbience() {
   const { ctx, music } = gameAudio();

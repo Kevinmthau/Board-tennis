@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { advanceRallyFrame, type RallyControl } from '../src/rally-frame';
 import { createMatch, strike, type Match } from '../src/tennis';
 import { SwingController, type SwingPose } from '../src/swing';
+import { ballDisplay } from '../src/ball-display';
 
 const pose = (angle: number, x = 1884, y = 370): SwingPose => ({ x, y, facingDeg: angle, frontReach: 70 });
 function incoming(): Match {
@@ -15,7 +16,7 @@ function incoming(): Match {
 }
 function rightControl(match: Match, previous: SwingPose): RallyControl {
   const controller = new SwingController();
-  controller.update(previous, match.ball, 0);
+  controller.update(previous, ballDisplay(match.ball), 0);
   return { side: 1, pose: previous, controller };
 }
 
@@ -58,8 +59,9 @@ test('the last frame still requires rotation, not a stationary line or a slide',
 
 test('a clean middle-of-court return starts at the actual swept contact position', () => {
   const match = incoming(); match.ball.x = 1370; match.ball.z = 180; match.ball.vz = 0;
-  const control = rightControl(match, pose(70, 1420));
-  control.pose = pose(125, 1420);
+  const racketY = ballDisplay(match.ball).y - 170;
+  const control = rightControl(match, pose(70, 1420, racketY));
+  control.pose = pose(125, 1420, racketY);
   const result = advanceRallyFrame(match, .1, 100, [control]);
   assert.ok(result.hit);
   assert.ok(result.hit.at.x >= 1370 && result.hit.at.x < 1420);
@@ -131,7 +133,8 @@ test('racket collision follows the top-wall reflection instead of the endpoint c
 
 test('a legal return after a back-wall reflection remains in the same receiver possession', () => {
   const match = incoming(); match.groundBounces = 1; match.ball.z = 180; match.ball.vz = 0;
-  const control = rightControl(match, pose(50)); control.pose = pose(90);
+  const racketY = ballDisplay(match.ball).y - 170;
+  const control = rightControl(match, pose(50,1884,racketY)); control.pose = pose(90,1884,racketY);
   const result = advanceRallyFrame(match, .1, 100, [control]);
   assert.ok(result.hit, 'a late swing can now legally catch the reflected ball');
   assert.ok(result.hit.shot.contactTimeMs > 100 * (10 / 22));
@@ -144,9 +147,32 @@ test('a volley begins at the exact contact height and keeps earlier landing effe
   const match = incoming(); match.ball.x=1370; match.ball.z=100; match.ball.vz=80;
   match.lastBounce={x:1300,y:540,age:.2};
   const before=structuredClone(match);
-  const control=rightControl(match,pose(70,1420));control.pose=pose(125,1420);
+  const racketY=ballDisplay(match.ball).y-170;
+  const control=rightControl(match,pose(70,1420,racketY));control.pose=pose(125,1420,racketY);
   const result=advanceRallyFrame(match,.1,100,[control]);
   assert.ok(result.hit);assert.equal(match.groundBounces,0);assert.ok(match.ball.z>100);
   assert.equal(before.lastBounce!.age,.2, 'preview physics must not mutate shared bounce events');
   assert.ok(Math.abs(match.lastBounce!.age-.3)<1e-8);
+});
+
+test('volleys hit the lifted visible ball, not its shadow, and keep the ground path continuous', () => {
+  const original = incoming();
+  original.ball = { x: 1400, y: 640, z: 240, vx: 0, vy: 0, vz: 0 };
+  const displayed = ballDisplay(original.ball);
+  assert.ok(displayed.y < original.ball.y - 100);
+  const visible = structuredClone(original);
+  const visibleControl = rightControl(visible, pose(70, 1400, displayed.y - 170));
+  visibleControl.pose = pose(110, 1400, displayed.y - 170);
+  const hit = advanceRallyFrame(visible, .05, 50, [visibleControl]);
+  assert.ok(hit.hit, 'the line can volley at the actual displayed position');
+  assert.ok(hit.hit.at.y < 450, 'hit feedback stays on the lifted visible ball');
+  assert.ok(visible.ball.y > 600, 'a return preserves the underlying ground path instead of copying the projected y');
+  assert.equal(visible.lastHitter, 1);
+
+  const shadow = structuredClone(original);
+  const shadowControl = rightControl(shadow, pose(70, 1400, shadow.ball.y - 170));
+  shadowControl.pose = pose(110, 1400, shadow.ball.y - 170);
+  const miss = advanceRallyFrame(shadow, .05, 50, [shadowControl]);
+  assert.equal(miss.hit, null, 'swinging only through the shadow cannot hit an airborne ball');
+  assert.equal(shadow.lastHitter, 0);
 });

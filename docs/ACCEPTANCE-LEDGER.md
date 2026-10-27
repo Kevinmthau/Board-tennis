@@ -35,3 +35,13 @@ Browser checks establish simulated behavior only; they do not establish physical
 - **Board:** Reinstalled and launched with the existing appId on KT's Board. Logs confirm the new asset bundle and restored platform state. Screenshot confirms the game behind the native pause menu: `artifacts/board-ground-bounce-update.png`. A person must tap Resume to play.
 - **Saves:** Version 1 scores, players, longest rally, and completed results are preserved. An old active rally restarts at a serve. Version 2 preserves flight and bounce state. Unit migration checks pass; native logs confirm stored state was available on launch.
 - **Human:** The bounce correction came from the person's playtest feedback. The updated physical rally feel has not yet been observed.
+
+## October 27, 2026 — Clearer arc and landing feedback
+
+- **Asked for:** "make the arc and bounces more obvious so we can clearly see when the ball hits the court"
+- **Source:** The ball now rises visibly above a shadow anchored to the court. Racket sweeps and the trail use the same projected position and visible radius. The underlying court path, bounce timing, volley rule, and two-bounce scoring remain unchanged. Landings show bold double rings, radial marks, a numbered badge, and a stronger squash. The contact sound is sharper; point chimes wait 120 ms.
+- **Unit/integration:** 148 passed, 0 failed, 3 external catalog tests skipped. New checks cover visible-ball volleys, misses through the shadow, contact at the enlarged visible edge, projection at the walls, and a complete match with projected aiming.
+- **Build:** TypeScript, Vite, standalone web build, and Board package pass.
+- **Browser:** Observed the ball rise above its grounded shadow, rebound, show a numbered first landing, and award a second-bounce point. Help and its return control were checked. Screenshots: `artifacts/clear-ball-arc.png` and `artifacts/clear-court-contact.png`.
+- **Board:** Installed and launched on KT's Board with the same appId. Logs confirm asset `index-CbDyqvIr.js`, restored platform state, and a running audio context. Device screenshot confirms the title screen: `artifacts/board-clear-bounce-update.png`.
+- **Human:** The requested improvement came from the person's feedback. Clarity and audio quality on the updated physical Board await their next playtest.

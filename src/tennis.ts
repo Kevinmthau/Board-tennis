@@ -125,7 +125,7 @@ function timeToGround(match: Match): number {
 }
 
 /** Piecewise positions, including exact wall touches and the final landing, for swept racket contact. */
-export interface MotionPoint { time: number; x: number; y: number }
+export interface MotionPoint { time: number; x: number; y: number; z: number }
 
 /** Advance in bounded substeps so receiver easing is independent of the display frame rate. */
 export function stepMatch(match: Match, dt: number, trace?: MotionPoint[]): number {
@@ -138,7 +138,7 @@ export function stepMatch(match: Match, dt: number, trace?: MotionPoint[]): numb
   // The caller freezes time for menus and missing pieces. Do not catch up minutes after a suspended tab.
   let remaining = Math.min(dt, 0.25);
   let elapsed = 0;
-  trace?.push({ time: 0, x: match.ball.x, y: match.ball.y });
+  trace?.push({ time: 0, x: match.ball.x, y: match.ball.y, z: match.ball.z });
   while (remaining > 1e-9 && match.phase === 'rally') {
     if (!match.crossedNet && match.shotTime >= TENNIS.netCrossTimeout - 1e-9) {
       awardPoint(match, opponent(match.lastHitter ?? match.server), 'short'); return elapsed;
@@ -160,7 +160,7 @@ export function stepMatch(match: Match, dt: number, trace?: MotionPoint[]): numb
       : oldX >= COURT.net && match.ball.x < COURT.net)) match.crossedNet = true;
     elapsed += spent; remaining -= spent; match.shotTime += spent;
     if (match.lastBounce) match.lastBounce.age += spent;
-    trace?.push({ time: elapsed, x: match.ball.x, y: match.ball.y });
+    trace?.push({ time: elapsed, x: match.ball.x, y: match.ball.y, z: match.ball.z });
     if (boundary?.kind === 'end') match.ball.vx = -match.ball.vx;
     if (boundary?.kind === 'wall') match.ball.vy = -match.ball.vy;
     if (spent >= groundTime - 1e-9) {

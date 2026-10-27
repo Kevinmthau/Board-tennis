@@ -3,6 +3,7 @@ import { drawTitle } from './title';
 import type { Box } from './howto';
 import { bake } from './fx';
 import { travelScale, type Match, type Side } from './tennis';
+import { ballDisplay } from './ball-display';
 import type { SwingPose } from './swing';
 
 export interface RacketView { pose: SwingPose; side: Side; active: boolean; glyphId: number }
@@ -58,31 +59,64 @@ function text(ctx: CanvasRenderingContext2D, label: string, x: number, y: number
 function line(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, color: string, width: number) {
   ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
 }
-/** Keep the visible ball centered on the strike coordinate. Height reads through
- * perspective size and a displaced ground shadow, so players never aim at an invisible ball. */
-function ball(ctx: CanvasRenderingContext2D, x: number, y: number, radius = 18, stretch = 1, height = 0) {
-  const lift = Math.max(0, Math.min(260, height));
-  const size = radius * (1 + Math.min(.7, lift / 360));
-  const opacity = ctx.globalAlpha;
+function ballShadow(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, height: number) {
+  const lift = Math.max(0, Math.min(360, height));
   ctx.save(); ctx.translate(x, y);
-  ctx.fillStyle = '#0d3e47'; ctx.globalAlpha = opacity * (.32 - Math.min(.17, lift / 1400));
-  ctx.beginPath(); ctx.ellipse(6 + lift * .22, 10 + lift * .42, radius + lift * .065, radius * .55 + lift * .032, 0, 0, TAU); ctx.fill();
-  ctx.globalAlpha = opacity; ctx.scale(stretch, 1 / Math.sqrt(stretch));
-  ctx.fillStyle = '#b7ce42'; ctx.beginPath(); ctx.arc(0, 0, size, 0, TAU); ctx.fill();
-  ctx.fillStyle = C.lime; ctx.beginPath(); ctx.arc(-size * .06, -size * .09, size * .94, 0, TAU); ctx.fill();
-  ctx.fillStyle = '#f6fbb2'; ctx.globalAlpha = opacity * .46; ctx.beginPath(); ctx.ellipse(-size * .28, -size * .34, size * .3, size * .18, -.7, 0, TAU); ctx.fill(); ctx.globalAlpha = opacity;
-  ctx.strokeStyle = '#fffbd8'; ctx.lineWidth = Math.max(2, size * .09);
-  ctx.beginPath(); ctx.arc(-size * .72, 0, size * .78, -.95, .95); ctx.stroke();
-  ctx.beginPath(); ctx.arc(size * .72, 0, size * .78, Math.PI - .95, Math.PI + .95); ctx.stroke();
+  ctx.fillStyle = '#082f40'; ctx.globalAlpha *= .46 - Math.min(.19, lift / 1800);
+  ctx.beginPath(); ctx.ellipse(0, 0, radius * 1.35 + lift * .07, radius * .7 + lift * .035, 0, 0, TAU); ctx.fill();
+  ctx.globalAlpha *= .55;
+  ctx.beginPath(); ctx.ellipse(0, 0, radius * .95 + lift * .035, radius * .5 + lift * .018, 0, 0, TAU); ctx.fill();
   ctx.restore();
 }
-function groundImpact(ctx: CanvasRenderingContext2D, x: number, y: number, age: number) {
-  if (age < 0 || age > .55) return;
-  const t = age / .55;
-  ctx.save(); ctx.globalAlpha = (1 - t) * .72; ctx.strokeStyle = C.cream; ctx.lineWidth = 4 * (1 - t) + 1;
-  ctx.beginPath(); ctx.ellipse(x, y, 23 + t * 66, 15 + t * 42, 0, 0, TAU); ctx.stroke();
-  ctx.globalAlpha = (1 - t) * .24; ctx.fillStyle = C.lime;
-  ctx.beginPath(); ctx.ellipse(x, y, 20 + t * 26, 11 + t * 15, 0, 0, TAU); ctx.fill();
+function ballBody(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, stretch = 1) {
+  const opacity = ctx.globalAlpha;
+  ctx.save(); ctx.translate(x, y); ctx.scale(stretch, 1 / Math.sqrt(stretch));
+  ctx.fillStyle = '#98ad2e'; ctx.beginPath(); ctx.arc(0, 0, radius, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#f8ffb4'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = C.lime; ctx.beginPath(); ctx.arc(-radius * .06, -radius * .09, radius * .94, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#fffbd8'; ctx.globalAlpha = opacity * .7; ctx.beginPath(); ctx.ellipse(-radius * .28, -radius * .34, radius * .3, radius * .18, -.7, 0, TAU); ctx.fill(); ctx.globalAlpha = opacity;
+  ctx.strokeStyle = '#fffbd8'; ctx.lineWidth = Math.max(2, radius * .1);
+  ctx.beginPath(); ctx.arc(-radius * .72, 0, radius * .78, -.95, .95); ctx.stroke();
+  ctx.beginPath(); ctx.arc(radius * .72, 0, radius * .78, Math.PI - .95, Math.PI + .95); ctx.stroke();
+  ctx.restore();
+}
+function ball(ctx: CanvasRenderingContext2D, x: number, y: number, radius = 18) {
+  ballShadow(ctx, x, y + 8, radius, 0); ballBody(ctx, x, y, radius);
+}
+function airborneBall(ctx: CanvasRenderingContext2D, x: number, y: number, height: number, radius = 18, stretch = 1, local = false) {
+  // Help is drawn in a seat's local frame; project it through a court-space anchor.
+  const ox = local ? 960 : 0, oy = local ? 540 : 0;
+  const display = ballDisplay({ x: x + ox, y: y + oy, z: height }, radius);
+  ballShadow(ctx, x, y, radius, height);
+  ballBody(ctx, display.x - ox, display.y - oy, display.radius, stretch);
+}
+function groundImpact(ctx: CanvasRenderingContext2D, x: number, y: number, age: number, count: 1 | 2 = 1, facing = 0, badge = true) {
+  if (age < 0 || age > .8) return;
+  const t = age / .8, burst = Math.min(1, age / .42), color = count === 2 ? C.coral : C.lime;
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 9 * (1 - t) + 2;
+  ctx.globalAlpha = (1 - t) * .95;
+  ctx.beginPath(); ctx.ellipse(x, y, 24 + burst * 105, 16 + burst * 68, 0, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = C.white; ctx.lineWidth = 4 * (1 - t) + 1;
+  ctx.beginPath(); ctx.ellipse(x, y, 15 + burst * 70, 10 + burst * 45, 0, 0, TAU); ctx.stroke();
+  if (age < .35) {
+    ctx.strokeStyle = color; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    for (let i = 0; i < 8; i++) {
+      const angle = i * TAU / 8, inner = 32 + burst * 76, outer = inner + 20 * (1 - burst);
+      line(ctx, x + Math.cos(angle) * inner, y + Math.sin(angle) * inner * .65,
+        x + Math.cos(angle) * outer, y + Math.sin(angle) * outer * .65, color, 6);
+    }
+    ctx.fillStyle = C.white; ctx.globalAlpha = .44 * (1 - age / .35);
+    ctx.beginPath(); ctx.ellipse(x, y, 36 + burst * 34, 23 + burst * 22, 0, 0, TAU); ctx.fill();
+  }
+  if (badge) {
+    ctx.globalAlpha = Math.min(1, (1 - t) * 2.5);
+    // Keep the landing readable under a rising ball, and keep text inside the glass.
+    ctx.translate(Math.max(88, Math.min(1832, x)), Math.max(88, Math.min(992, y + 90)));
+    ctx.rotate(facing);
+    ctx.fillStyle = C.deep; ctx.beginPath(); ctx.arc(0, 0, 35, 0, TAU); ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.stroke();
+    text(ctx, String(count), 0, 0, 48, color);
+  }
   ctx.restore();
 }
 function piece(ctx: CanvasRenderingContext2D, glyph: number, x: number, y: number, height: number) {
@@ -218,9 +252,10 @@ function help(ctx: CanvasRenderingContext2D, v: GameView, f: Frame) {
     const contact = .15 + .28 * .5, flight = Math.min(1, Math.max(0, (t - contact) / .5));
     const distance = f.native ? 320 : 610, bounceAt = .6;
     const arcT = flight < bounceAt ? flight / bounceAt : (flight - bounceAt) / (1 - bounceAt);
-    const height = flight > 0 && flight < 1 ? 4 * arcT * (1 - arcT) * (flight < bounceAt ? 130 : 58) : 0;
-    if (flight >= bounceAt) groundImpact(ctx, px + distance * bounceAt, py - 180, (flight - bounceAt) * 1.6);
-    ball(ctx, px + flight * distance, py - 180, 20, 1, height);
+    const arc = flight < bounceAt ? (f.native ? 95 : 140) : (f.native ? 50 : 75);
+    const height = flight > 0 && flight < 1 ? 4 * arcT * (1 - arcT) * arc : 0;
+    if (flight >= bounceAt) groundImpact(ctx, px + distance * bounceAt, py - 130, (flight - bounceAt) * 1.6, 1, 0, false);
+    airborneBall(ctx, px + flight * distance, py - 130, height, 20, 1, true);
     if (f.native) {
       text(ctx, 'Slide beside the ball.', 0, 150, 40);
       text(ctx, 'Twist your line through it.', 0, 204, 40);
@@ -282,13 +317,17 @@ function play(ctx: CanvasRenderingContext2D, v: GameView) {
     ctx.save(); ctx.globalAlpha = .25 + .12 * Math.sin(v.now / 250); ctx.strokeStyle = C.lime; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(m.ball.x, m.ball.y, 29 + 4 * Math.sin(v.now / 250), 0, TAU); ctx.stroke(); ctx.restore();
   }
-  if (m.lastBounce) groundImpact(ctx, m.lastBounce.x, m.lastBounce.y, m.lastBounce.age);
+  if (m.lastBounce) {
+    const count = m.groundBounces === 2 ? 2 : 1;
+    const side = count === 2 ? m.receiver : m.lastBounce.x < 960 ? 0 : 1;
+    groundImpact(ctx, m.lastBounce.x, m.lastBounce.y, m.lastBounce.age, count, v.browser ? 0 : NATIVE[side].angle);
+  }
   const impactAge = m.lastBounce?.age ?? Infinity;
-  if (m.phase !== 'over' && (m.phase !== 'point' || impactAge < .35)) {
-    const squash = m.ball.z < 22 ? .32 * Math.max(0, 1 - impactAge / .12) : 0;
+  if (m.phase !== 'over' && (m.phase !== 'point' || impactAge < .5)) {
+    const squash = m.ball.z < 38 ? .72 * Math.max(0, 1 - impactAge / .18) : 0;
     ctx.save();
-    if (m.phase === 'point') ctx.globalAlpha = Math.max(0, 1 - impactAge / .35);
-    ball(ctx, m.ball.x, m.ball.y, 18, 1 + squash, m.ball.z);
+    if (m.phase === 'point') ctx.globalAlpha = Math.max(0, 1 - impactAge / .5);
+    airborneBall(ctx, m.ball.x, m.ball.y, m.ball.z, 18, 1 + squash);
     ctx.restore();
   }
   if (v.missing) {
