@@ -5,7 +5,8 @@ import { loadPieceFootprints, pieceFootprint, frontPoint, type PieceFootprints }
 import { noteContacts, pickPlayer, seated, selectorOpen } from './seats';
 import { PieceTracker, type TrackedPiece } from './tracking';
 import { SwingController, type SwingPose } from './swing';
-import { createMatch, stepMatch, strike, nextServe, canStrike, inOwnHalf, type Match, type Side } from './tennis';
+import { createMatch, nextServe, canStrike, inOwnHalf, type Match, type Side } from './tennis';
+import { advanceRallyFrame, type RallyControl } from './rally-frame';
 import { Splashes, Particles, Trail, PopTexts } from './fx';
 import { hit } from './howto';
 import { drawGame, loadGameArt, BUTTONS, type GameView, type RacketView } from './view';
@@ -23,6 +24,8 @@ const tracker = new PieceTracker();
 const contacts = new Map<number, BoardContact>();
 const swings = [new SwingController(), new SwingController()];
 const epochs = new Map<number, number>();
+// A menu temporarily hides pieces. Confirm their redetection before accepting a real lift.
+const setupLiftRequired = new Map<number, boolean>();
 const splashes = new Splashes(), particles = new Particles(180), pops = new PopTexts();
 const trail = new Trail({ color: '#e9f583', width: 14, life: .2, glow: false });
 let taps: { x: number; y: number }[] = [];
@@ -58,7 +61,7 @@ function sideAt(p: TrackedPiece): Side | null {
 }
 function bindPieces() {
   for (const p of tracker.identities) {
-    if (!p.present || p.glyphId > 8 || seats.some(s => s.pieceId === p.id)) continue;
+    if (!p.present || p.glyphId > 8 || setupLiftRequired.has(p.id) || seats.some(s => s.pieceId === p.id)) continue;
     const side = sideAt(p);
     if (side === null) continue;
     const held = seats.find(s => s.side === side);
@@ -84,6 +87,8 @@ function readSave() {
     || !['serve', 'rally', 'point', 'over'].includes(value.match?.phase)
     || ![value.match?.ball?.x, value.match?.ball?.y, value.match?.ball?.vx, value.match?.ball?.vy].every(Number.isFinite)
     || !Array.isArray(value.sides)) return;
+  value.match.backWallBounces = value.match.backWallBounces === 1 ? 1 : 0;
+  value.match.shotTime = Number.isFinite(value.match.shotTime) && value.match.shotTime >= 0 ? value.match.shotTime : 0;
   saved = value;
 }
 function enterSetup(restore = false) {
@@ -98,7 +103,7 @@ function enterSetup(restore = false) {
 }
 function rematch() { match = createMatch(); continuing = false; mode = 'setup'; resetSwings(); trail.clear(); }
 function changeSetup() {
-  for (const p of tracker.identities) p.owner = null;
+  for (const p of tracker.identities) { p.owner = null; setupLiftRequired.set(p.id, p.present); }
   seats.forEach(s => { s.side = null; s.pieceId = null; });
   enterSetup();
 }
@@ -111,6 +116,8 @@ startInput((batch, active) => {
   for (const c of active.values()) if (c.type === BoardContactType.Glyph) contacts.set(c.contactId, c);
   for (const c of batch) if (c.type === BoardContactType.Finger && c.phase === BoardContactPhase.Began) taps.push({ x: c.x, y: c.y });
 }, () => {
+  // Menu absence is not a physical lift, including repeated menus while setup is waiting.
+  for (const id of setupLiftRequired.keys()) setupLiftRequired.set(id, false);
   tracker.paused(performance.now()); contacts.clear(); taps = []; resetSwings(); save();
 });
 canvas.addEventListener('pointerdown', e => {
@@ -142,6 +149,10 @@ function scoreMoment() {
 }
 function update(now: number, dt: number) {
   const changed = tracker.update([...contacts.values()].filter(c => c.glyphId <= 8), now);
+  for (const p of tracker.identities) if (setupLiftRequired.has(p.id)) {
+    if (p.present) setupLiftRequired.set(p.id, true);
+    else if (p.lifted && setupLiftRequired.get(p.id)) setupLiftRequired.delete(p.id);
+  }
   for (const p of changed.arrivals) {
     const fp = pieceFootprint(footprints, p);
     splashes.at(p.x, p.y, { inner: fp?.radiusPx ?? 90, color: '#f4e8b7', sound: () => sound('place'), sparks: particles });
@@ -169,25 +180,22 @@ function update(now: number, dt: number) {
   } else if (mode === 'play') {
     const missing = seats.length !== 2 || seats.some(s => !pieceFor(s) || pieceFor(s)!.lifted);
     if (!missing) {
-      const previousPhase = match.phase;
-      let remaining = dt;
-      while (remaining > 0) { const step = Math.min(1 / 120, remaining); stepMatch(match, step); remaining -= step; }
-      if (previousPhase === 'rally' && (match.phase === 'point' || match.phase === 'over')) scoreMoment();
-      if (match.phase === 'point' && nextServe(match)) { resetSwings(); trail.clear(); save(); }
+      const controls: RallyControl[] = [];
       for (const s of seats) {
         if (s.side === null) continue;
         const p = pieceFor(s);
         if (!p?.present) { swings[s.side].reset(); continue; }
         if (epochs.get(p.id) !== p.epoch) { swings[s.side].reset(); epochs.set(p.id, p.epoch); }
-        const pose = poseOf(p);
-        const enabled = canStrike(match, s.side) && inOwnHalf(s.side, p.x);
-        const shot = swings[s.side].update(pose, match.ball, now, enabled);
-        if (shot && strike(match, s.side, shot)) {
-          sound('hit', shot.speed);
-          particles.burst(match.ball.x, match.ball.y, { count: 10, color: '#f3faab', speed: 180, life: .24, glow: false });
-          trail.clear(); save();
-        }
+        controls.push({ side: s.side, pose: poseOf(p), controller: swings[s.side] });
       }
+      const result = advanceRallyFrame(match, dt, now, controls);
+      if (result.hit) {
+        sound('hit', result.hit.shot.speed);
+        particles.burst(result.hit.at.x, result.hit.at.y, { count: 10, color: '#f3faab', speed: 180, life: .24, glow: false });
+        trail.clear(); save();
+      }
+      if (result.point) scoreMoment();
+      if (match.phase === 'point' && nextServe(match)) { resetSwings(); trail.clear(); save(); }
       if (match.phase === 'rally') trail.push(match.ball.x, match.ball.y);
       if (match.phase === 'over') { mode = 'over'; save(); }
     } else resetSwings();

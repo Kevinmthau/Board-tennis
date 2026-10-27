@@ -234,7 +234,12 @@
     all.forEach(drawPiece);
     for(let side=0;side<2;side++)placeButtons[side].textContent=sides[side]===null?'Place piece':'Piece ready';
     const state=window.TwistTennisState;
-    status.textContent=state?.mode==='play'?'Line touching the ball? E / . sends it forward.':'Add the second player, then place one piece at each end.';
+    surface.style.visibility=state?.mode==='help'||state?.mode==='over'?'hidden':'visible';
+    status.textContent=state?.mode==='play'
+      ?state.match?.phase==='serve'?'Line touching the ball? E / . sends it forward.':'Slide beside the ball, then twist to return it.'
+      :state?.mode==='help'?'Back to game resumes the same match.'
+      :state?.mode==='over'?'Choose Rematch or Change setup on the court.'
+      :state?.seats?.length===2?'Lift and place one piece at each end.':'Add the second player, then place one piece at each end.';
     fitCanvas();requestAnimationFrame(frame);
   }
   const install=()=>{(document.body??document.documentElement).append(root);document.body.style.background='#082d31';requestAnimationFrame(frame);};

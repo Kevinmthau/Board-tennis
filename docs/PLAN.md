@@ -23,9 +23,12 @@
 - Adapt the existing putt-putt collision to a moving ball. Sweep both the ball and line to avoid missed fast contacts.
 - The receiver can return once. A return becomes available to the other side after the ball crosses the center net.
 - Players stay in their half. The physical pose is never moved or clamped by game logic.
-- The center net is a visual separator. This arcade prototype has no height, double faults, sets, or bounce-count rules.
-- A ball past an opponent's baseline wins a point. A shot across either sideline loses the point.
-- A backward shot loses the point if it exits the hitter's baseline. The line does not silently correct shot direction.
+- The center net is a visual separator. This arcade prototype has no height, ground bounces, double faults, or sets.
+- The whole 1920×1080 screen is the court. Top and bottom Board walls rebound the ball without a penalty.
+- Every incoming shot gets one back-wall recovery bounce. A second end-wall hit without a return loses the point for the receiver.
+- A racket return resets the back-wall allowance. A backward shot can bank off the hitter's own wall before crossing the net.
+- A shot must cross the net within 8 seconds. Otherwise, the hitter loses the point. This prevents a vertical shot bouncing forever.
+- The line does not silently correct shot direction.
 - After a point, the conceding player receives a stationary serve ball. Their next twist begins the rally.
 - First to 7, win by 2. The final result waits for a shared Rematch or Change setup choice.
 - A short tracking gap keeps ball momentum and piece identity. A deliberate lift pauses the rally until both pieces return.
@@ -72,12 +75,12 @@
 ## Result and replay
 The result names the winner and shows both scores and the longest rally. It stays until a shared choice.
 Rematch resets scores, ball, rally count, and swing intent. It preserves seats and pieces without new arrival effects.
-Change setup releases seat bindings and returns to roster setup. Help and the system menu preserve the match.
+Change setup releases seat bindings and returns to roster setup. Lift and replace each piece to confirm the new setup. Help and the system menu preserve the match.
 
 ## Look and asset plan
-Sunny tennis club, viewed straight down. Blue hard court, deep green surrounds, cream lines, lime ball, coral and cream player accents.
+Sunny arcade tennis, viewed straight down. Full-screen blue hard court, cream net and walls, lime ball, coral and cream player accents.
 Use the bundled Kabel typeface through `gameFont()` and `drawTitle()`. Draw the detailed court once and cache it.
-Keep the center clear for play, with restrained fence, planting, and court-material detail around the edges.
+Fill the glass with a blue court and subtle material detail. The only walls are the physical Board edges. No inset court or scenery apron.
 Title, setup, play, recovery, and result share the same court materials. Do not add dashboard sidebars.
 Canonical Sports renders identify equipment. No proxy, ring, or sprite follows a physical piece on Board.
 The requested emitted racket line is gameplay, begins outside the footprint, and remains visible.
@@ -105,3 +108,6 @@ Native feel and uncoached human learning remain unverified until played on actua
 | AI | No AI in this first version | person | Explicit two-human choice overrides skill default |
 | Delivery | Playable local web version and Board-compatible package | builder | User requested a web build; no hardware installation requested |
 | Rally feel | Slow near the receiver, with live movement | person | Design answer |
+| Court extent | Whole screen, with Board walls | person | Follow-up design answer |
+| Walls | Top/bottom rebounds; one back-wall recovery per incoming shot | person | Follow-up design answer |
+| Dead shot | Point lost after 8 seconds without crossing the net | builder | Prevent a perfectly vertical shot from stalling play |

@@ -1,10 +1,13 @@
 /** The putt-putt forehead line adapted to a live tennis ball.
  * Placement and sliding never hit. Both the racket and moving ball are swept for contact. */
 export interface Point { x: number; y: number }
+export interface TimedPoint extends Point { timeMs: number }
 export interface SwingPose extends Point { facingDeg: number; frontReach: number }
 export interface SwingHit {
   vx: number; vy: number; speed: number; angularSpeed: number; contactAngleDeg: number;
+  contactPosition: Point; contactTimeMs: number;
 }
+export interface SweepContact { angle: number; fraction: number; position: Point }
 export type SwingStatus = 'missing' | 'ready' | 'spent';
 export const SWING = {
   clubLength: 240, clubWidth: 6, ballRadius: 18, rotationNoiseDeg: 1,
@@ -35,6 +38,12 @@ export function clubDistance(pose: SwingPose, ball: Point): number {
  * Every relative-motion substep is at most 4 px and every rotation substep at most 2 degrees. */
 export function sweptClubContact(previous: SwingPose, current: SwingPose, ball: Point,
   previousBall: Point = ball): number | null {
+  return sweptClubIntersection(previous, current, ball, previousBall)?.angle ?? null;
+}
+
+/** The full contact result lets the frame resolver order a hit against the first boundary exit. */
+export function sweptClubIntersection(previous: SwingPose, current: SwingPose, ball: Point,
+  previousBall: Point = ball): SweepContact | null {
   const delta = shortAngleDelta(current.facingDeg, previous.facingDeg);
   if (!finite(previous) || !finite(current) || !finitePoint(ball) || !finitePoint(previousBall)
     || Math.abs(delta) < 1e-8) return null;
@@ -50,7 +59,7 @@ export function sweptClubContact(previous: SwingPose, current: SwingPose, ball: 
     y: previousBall.y + (ball.y - previousBall.y) * t,
   });
   const touches = (t: number) => clubDistance(poseAt(t), ballAt(t)) <= radius;
-  if (touches(0)) return norm(previous.facingDeg);
+  if (touches(0)) return { angle: norm(previous.facingDeg), fraction: 0, position: { ...previousBall } };
   const steps = Math.max(1, Math.ceil(Math.abs(delta) / 2),
     Math.ceil((distance(previous, current) + distance(previousBall, ball)) / 4));
   for (let i = 1; i <= steps; i++) {
@@ -60,7 +69,7 @@ export function sweptClubContact(previous: SwingPose, current: SwingPose, ball: 
       const mid = (lo + hi) / 2;
       if (touches(mid)) hi = mid; else lo = mid;
     }
-    return norm(previous.facingDeg + delta * hi);
+    return { angle: norm(previous.facingDeg + delta * hi), fraction: hi, position: ballAt(hi) };
   }
   return null;
 }
@@ -91,16 +100,54 @@ export class SwingController {
     this.angularSpeed = 0; this.status = 'ready';
   }
 
-  update(pose: SwingPose | null, ball: Point, now: number, enabled = true): SwingHit | null {
+  /** Follow every reflected segment. The measured pose is interpolated in real frame time,
+   * never bent to match the ball's collision path. A fresh or stale sample cannot strike. */
+  updateAlong(pose: SwingPose | null, now: number, enabled: boolean, path: readonly TimedPoint[]): SwingHit | null {
+    const end = path[path.length - 1];
+    if (!enabled || !pose || !finite(pose) || !end || !Number.isFinite(now)) { this.reset(); return null; }
+    if (!this.previous || now - this.previousTime > SWING.maximumGapMs) {
+      this.seed(pose, end, now); return null;
+    }
+    const origin = { ...this.previous }, start = this.previousTime, elapsed = now - start;
+    if (elapsed <= 0) return null;
+    const angle = shortAngleDelta(pose.facingDeg, origin.facingDeg);
+    for (const point of path) {
+      if (point.timeMs <= start) continue;
+      const t = Math.max(0, Math.min(1, (point.timeMs - start) / elapsed));
+      const interpolated: SwingPose = {
+        x: origin.x + (pose.x - origin.x) * t, y: origin.y + (pose.y - origin.y) * t,
+        facingDeg: origin.facingDeg + angle * t, frontReach: origin.frontReach + (pose.frontReach - origin.frontReach) * t,
+      };
+      const hit = this.update(interpolated, point, point.timeMs, true);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  update(pose: SwingPose | null, ball: Point, now: number, enabled = true, throughTime = now): SwingHit | null {
     if (!enabled || !pose || !finite(pose) || !finitePoint(ball) || !Number.isFinite(now)) {
       this.reset(); return null;
     }
     // This lock belongs to one possession. Calling disabled between hits rearms it for a return.
     if (this.spent) { this.status = 'spent'; return null; }
     if (!this.previous || !this.previousBall) { this.seed(pose, ball, now); return null; }
-    const previous = this.previous, previousBall = this.previousBall, dt = now - this.previousTime;
+    const previous = this.previous, previousBall = this.previousBall, previousTime = this.previousTime;
+    const wholeDt = now - previousTime;
+    if (wholeDt > SWING.maximumGapMs) { this.seed(pose, ball, now); return null; }
+    // At a boundary, do not squeeze a whole frame's turn into the shorter ball path.
+    // Evaluate only the fraction of the measured pose reached before the ball exited.
+    if (throughTime < now && wholeDt > 0) {
+      const fraction = Math.max(0, Math.min(1, (throughTime - previousTime) / wholeDt));
+      pose = {
+        x: previous.x + (pose.x - previous.x) * fraction,
+        y: previous.y + (pose.y - previous.y) * fraction,
+        facingDeg: previous.facingDeg + shortAngleDelta(pose.facingDeg, previous.facingDeg) * fraction,
+        frontReach: previous.frontReach + (pose.frontReach - previous.frontReach) * fraction,
+      };
+      now = previousTime + wholeDt * fraction;
+    }
+    const dt = now - previousTime;
     if (dt <= 0) return null;
-    if (dt > SWING.maximumGapMs) { this.seed(pose, ball, now); return null; }
     const delta = shortAngleDelta(pose.facingDeg, previous.facingDeg);
     this.previous = { ...pose }; this.previousBall = { ...ball }; this.previousTime = now;
     this.unwrapped += delta;
@@ -118,13 +165,14 @@ export class SwingController {
     const directSpeed = Math.abs(turn) / Math.max(1, now - this.motionTime) * 1000;
     this.motionAngle = this.unwrapped; this.motionTime = now;
     // Use only this frame's relative sweep. Accumulated slow rotation cannot hit an old ball position.
-    const contactAngle = sweptClubContact(previous, pose, ball, previousBall);
-    if (contactAngle === null) return null;
+    const contact = sweptClubIntersection(previous, pose, ball, previousBall);
+    if (contact === null) return null;
     const measured = this.angularSpeed * direction > 0 ? Math.abs(this.angularSpeed) : directSpeed;
     this.angularSpeed = direction * measured;
-    const speed = ballSpeedForTwist(measured), rad = contactAngle * Math.PI / 180;
+    const speed = ballSpeedForTwist(measured), rad = contact.angle * Math.PI / 180;
     this.spent = true; this.status = 'spent';
     return { vx: -Math.sin(rad) * direction * speed, vy: Math.cos(rad) * direction * speed,
-      speed, angularSpeed: this.angularSpeed, contactAngleDeg: contactAngle };
+      speed, angularSpeed: this.angularSpeed, contactAngleDeg: contact.angle,
+      contactPosition: contact.position, contactTimeMs: previousTime + dt * contact.fraction };
   }
 }

@@ -8,9 +8,9 @@ function advance(match: Match, seconds: number): void {
 }
 function winBaseline(match: Match, side: 0 | 1): void {
   match.phase = 'rally'; match.lastHitter = side; match.receiver = side === 0 ? 1 : 0;
-  match.crossedNet = true;
-  match.ball = { x: side === 0 ? COURT.right + BALL_RADIUS - 1 : COURT.left - BALL_RADIUS + 1,
-    y: 540, vx: side === 0 ? 1000 : -1000, vy: 0 };
+  match.crossedNet = true; match.backWallBounces = 1;
+  match.ball = { x: side === 0 ? COURT.left + BALL_RADIUS + 1 : COURT.right - BALL_RADIUS - 1,
+    y: 540, vx: side === 0 ? -1000 : 1000, vy: 0 };
   stepMatch(match, 1 / 60);
 }
 
@@ -40,7 +40,7 @@ test('returns alternate and become legal only after crossing the net', () => {
   assert.equal(match.rally, 3); assert.equal(match.bestRally, 3);
 });
 
-test('a missed baseline scores for the opponent and the conceding player serves', () => {
+test('a second end-wall touch scores for the hitter and the conceding player serves', () => {
   for (const winner of [0, 1] as const) {
     const match = createMatch(); winBaseline(match, winner);
     assert.equal(match.phase, 'point'); assert.equal(match.score[winner], 1);
@@ -54,34 +54,80 @@ test('a missed baseline scores for the opponent and the conceding player serves'
   }
 });
 
-test('a sideline miss loses the hitter the point, and touching the line remains in', () => {
+test('top and bottom walls reflect the ball without a point or a lost bounce allowance', () => {
   const match = createMatch(); strike(match, 0, { vx: 0, vy: -700 });
-  match.ball.y = COURT.top + 1;
+  match.ball.y = COURT.top + BALL_RADIUS + 1;
   stepMatch(match, .01);
-  assert.equal(match.phase, 'rally', 'the ball still overlaps the court');
-  advance(match, .1);
-  assert.equal(match.phase, 'point'); assert.deepEqual(match.score, [0, 1]);
-  assert.equal(match.reason, 'out'); assert.equal(match.ball.y, COURT.top - BALL_RADIUS);
+  assert.equal(match.phase, 'rally'); assert.ok(match.ball.vy > 0);
+  assert.ok(match.ball.y > BALL_RADIUS);
+  advance(match, 5);
+  assert.equal(match.phase, 'rally'); assert.deepEqual(match.score, [0, 0]);
+  assert.equal(match.backWallBounces, 0);
+  assert.ok(match.ball.y >= BALL_RADIUS && match.ball.y <= COURT.bottom - BALL_RADIUS);
 });
 
-test('earliest boundary at a corner decides the point rather than axis-test order', () => {
-  const outFirst = createMatch(); strike(outFirst, 0, { vx: 1000, vy: 1000 });
-  outFirst.ball.x = COURT.right + BALL_RADIUS - 8;
-  outFirst.ball.y = COURT.bottom + BALL_RADIUS - 3;
-  stepMatch(outFirst, .02);
-  assert.equal(outFirst.reason, 'out'); assert.deepEqual(outFirst.score, [0, 1]);
-  const baselineFirst = createMatch(); strike(baselineFirst, 0, { vx: 1000, vy: 1000 });
-  baselineFirst.ball.x = COURT.right + BALL_RADIUS - 2;
-  baselineFirst.ball.y = COURT.bottom + BALL_RADIUS - 8;
-  stepMatch(baselineFirst, .02);
-  assert.equal(baselineFirst.reason, 'baseline'); assert.deepEqual(baselineFirst.score, [1, 0]);
+test('corner collisions reflect in physical order and count only the end wall', () => {
+  for (const wallFirst of [true, false]) {
+    const match = createMatch(); strike(match, 0, { vx: 1000, vy: 1000 }); match.crossedNet = true;
+    match.ball.x = COURT.right - BALL_RADIUS - (wallFirst ? 8 : 2);
+    match.ball.y = COURT.bottom - BALL_RADIUS - (wallFirst ? 3 : 8);
+    const trace: {time:number; x:number; y:number}[] = [];
+    stepMatch(match, .1, trace);
+    const contacts = trace.filter(p => Math.abs(p.x - (COURT.right - BALL_RADIUS)) < 1e-7
+      || Math.abs(p.y - (COURT.bottom - BALL_RADIUS)) < 1e-7);
+    assert.ok(contacts.length >= 2);
+    if (wallFirst) assert.equal(contacts[0].y, COURT.bottom - BALL_RADIUS);
+    else assert.equal(contacts[0].x, COURT.right - BALL_RADIUS);
+    assert.ok(match.ball.vx < 0 && match.ball.vy < 0);
+    assert.equal(match.backWallBounces, 1); assert.deepEqual(match.score, [0, 0]);
+  }
 });
 
-test('backwards shots keep their direction and lose at their own baseline', () => {
+test('a backwards bank keeps its real direction and does not consume the receiver bounce', () => {
   const match = createMatch(); strike(match, 0, { vx: -700, vy: 0 });
   assert.equal(match.ball.vx, -700);
   advance(match, 1);
-  assert.deepEqual(match.score, [0, 1]); assert.equal(match.crossedNet, false);
+  assert.ok(match.ball.vx > 0); assert.equal(match.crossedNet, false);
+  assert.deepEqual(match.score, [0, 0]); assert.equal(match.backWallBounces, 0);
+  advance(match, 1.2);
+  assert.equal(match.crossedNet, true); assert.equal(match.phase, 'rally');
+  assert.equal(match.backWallBounces, 0);
+});
+
+test('the receiver gets one slow recovery bounce; the next end wall loses the point', () => {
+  const match = createMatch(); strike(match, 0, { vx: 1000, vy: 0 });
+  match.crossedNet = true; match.ball.x = COURT.right - BALL_RADIUS - 1;
+  stepMatch(match, .05);
+  assert.equal(match.backWallBounces, 1); assert.equal(match.phase, 'rally');
+  assert.equal(match.receiver, 1); assert.equal(canStrike(match, 1), true);
+  assert.ok(match.ball.vx < 0); assert.deepEqual(match.score, [0, 0]);
+  match.ball.x = 1200;
+  assert.ok(Math.abs(travelScale(match) - .22) < 1e-10, 'recovery stays slow while leaving the back wall');
+  match.ball.x = 900;
+  assert.equal(travelScale(match), 1, 'speed returns after passing the center');
+  match.ball.x = COURT.left + BALL_RADIUS + 1;
+  stepMatch(match, .05);
+  assert.equal(match.phase, 'point'); assert.deepEqual(match.score, [1, 0]);
+  assert.equal(match.pointWinner, 0);
+});
+
+test('a return resets the back-wall allowance for the next incoming shot', () => {
+  const match = createMatch(); strike(match, 0, { vx: 1000, vy: 0 });
+  match.crossedNet = true; match.backWallBounces = 1; match.ball.x = 1500;
+  assert.equal(strike(match, 1, { vx: -700, vy: 0 }), true);
+  assert.equal(match.backWallBounces, 0); assert.equal(match.shotTime, 0);
+});
+
+test('an exactly vertical shot resolves after eight live seconds without changing its tangent', () => {
+  const match = createMatch(); strike(match, 0, { vx: 0, vy: -700 });
+  advance(match, 4);
+  assert.equal(match.phase, 'rally'); assert.equal(match.ball.vx, 0);
+  const pausedTime = match.shotTime;
+  stepMatch(match, 0); assert.equal(match.shotTime, pausedTime, 'no elapsed physics means no timeout progress');
+  advance(match, 4.1);
+  assert.equal(match.phase, 'point'); assert.deepEqual(match.score, [0, 1]);
+  assert.equal(match.reason, 'short');
+  assert.ok(Math.abs(match.shotTime - 8) < 1e-7);
 });
 
 test('receiver slowdown is smooth, preserves vector and gives each end the same assistance', () => {
