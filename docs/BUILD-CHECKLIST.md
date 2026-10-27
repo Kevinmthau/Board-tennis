@@ -16,5 +16,6 @@
 - [x] Assembled browser: roster, setup, serve, rally travel, point, pause, help, setup change.
 - [x] Full match and shared result/rematch exercised through real main-loop input integration tests.
 - [ ] Full result/rematch journey manually played in the browser by two people.
-- [ ] Real Board hardware and physical feel tested (outside web delivery).
+- [x] Installed and launched on KT's Board; native title screenshot and startup logs checked.
+- [ ] Real Board physical piece recognition and rally feel tested.
 - [ ] Uncoached human playtest (pending user play).

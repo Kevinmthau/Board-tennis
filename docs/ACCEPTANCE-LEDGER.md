@@ -15,3 +15,12 @@
 - **Open:** Tune slowdown, racket reach and angular-speed power after physical play. Confirm that the one-back-wall allowance is clear to new players. Confirm hardware save/restore and tracking recovery with actual Sports pieces.
 
 Browser checks establish simulated behavior only; they do not establish physical feel.
+
+## October 27, 2026 — Installed for Sports-piece playtest
+
+- **Asked for:** "Can you put it on my Board so we can try it with the Sports pieces?"
+- **Build:** Same verified first-playable package and appId; source commit `4a5edca`.
+- **Board:** Installed and launched successfully on KT's Board through Board Connect. A device screenshot confirms the native title screen, seat-facing text, Sports artwork, and Play/How to play controls. Platform state initialized and the audio context started. Startup logs contain only missing optional font-manifest/favicon warnings, with no game exception.
+- **Evidence:** `artifacts/board-first-launch.png` (local screenshot, ignored by Git).
+- **Human:** Playtest ready; no physical rally or player feedback observed yet.
+- **Open:** Physical piece recognition, swing feel, pause recovery, native saves, and an uncoached two-person match remain to be checked during play.

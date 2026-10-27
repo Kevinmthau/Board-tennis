@@ -20,3 +20,8 @@ Added an input-driven full match, result and rematch integration check, plus men
 Browser verification found that Change setup could mistake a menu's tracking reset for a deliberate lift.
 Setup now requires observed presence followed by a real lift and replacement, with that observation reset at each pause epoch.
 Browser controller overlays are hidden while help or the final result is shown.
+
+## October 27, 2026 — Requested Board installation
+The person asked to install the game on their Board for a Sports-piece playtest.
+Installed and launched the verified package on KT's Board. Confirmed the native title screen and clean game startup through a device screenshot and logs.
+Physical rally testing awaits the players; the app identity is now fixed for future updates and save continuity.
