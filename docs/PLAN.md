@@ -25,6 +25,8 @@ Two human players use the existing Sports pieces and twist controls for singles 
 - Use each piece's measured footprint as its feet, including kitchen-line and service-foot faults.
 - Track volley follow-through until the piece settles for 0.2 seconds within a 16 px / 8 degree rest window (tracking-jitter tolerance). Kitchen contact during this motion is a fault, even after the ball dies.
 - Delay a rally outcome while volley follow-through is unsettled. Never announce a provisional point or result.
+- When both players are following through, process observed footprint motion chronologically; the first kitchen entry ends the rally regardless of roster order.
+- Only classified, observed poses count toward settling. A classification gap preserves identity and ball momentum but cannot manufacture rest.
 - An out-of-bounds first landing loses for the hitter. A second landing after a legal first bounce loses for the receiver.
 - Board edges never rebound. Reaching the glass edge before a legal bounce is out; after a legal bounce it is a missed return.
 - A low net crossing is a fault. Automatic vertical flight, receiver slowdown, and the measured planar tangent remain.

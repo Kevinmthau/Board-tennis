@@ -265,3 +265,27 @@ test('a swept return preserves the previous volley’s full settling time before
     assert.deepEqual(match.score, [0, 0]);
   }
 });
+
+test('both volley follow-through paths resolve the earliest kitchen contact, independent of control order', () => {
+  const footprints: PieceFootprints = JSON.parse(readFileSync('public/piece-footprints.json', 'utf8'));
+  const footingAt = (p: SwingPose): Footing => ({ ...p, outline: pieceFootprint(footprints,
+    { ...p, glyphId: 5, orientation: p.facingDeg - footprints.facingOffsetDeg })!.outline });
+  const leftExtent = Math.max(...footingAt(pose(0, 0, 540)).outline.map(p => p.x));
+  const rightExtent = -Math.min(...footingAt(pose(180, 0, 540)).outline.map(p => p.x));
+  for (const firstSide of [0, 1] as const) for (const reverseControls of [false, true]) {
+    const match = createMatch();
+    Object.assign(match, { phase: 'rally', rally: 5, lastHitter: 1, receiver: 0,
+      ball: { x: 1050, y: 540, z: 150, vx: -700, vy: 0, vz: 0 } });
+    const poses = [pose(0, COURT.kitchenLeft - leftExtent - (firstSide === 0 ? 1 : 25), 540),
+      pose(180, COURT.kitchenRight + rightExtent + (firstSide === 1 ? 1 : 25), 540)];
+    match.volleyGuards = poses.map(p => ({ x: p.x, y: p.y, facingDeg: p.facingDeg,
+      anchorX: p.x, anchorY: p.y, anchorFacing: p.facingDeg, stillFor: 0 })) as Match['volleyGuards'];
+    const controls: RallyControl[] = poses.map((p, side) => ({ side: side as 0 | 1,
+      pose: { ...p, x: p.x + (side ? -40 : 40) }, controller: new SwingController(), footingAt }));
+    if (reverseControls) controls.reverse();
+    const result = advanceRallyFrame(match, .05, 50, controls);
+    assert.equal(result.point, true); assert.equal(match.reason, 'kitchen');
+    assert.equal(match.pointWinner, 1 - firstSide);
+    assert.deepEqual(match.score, firstSide === 0 ? [0, 0] : [1, 0]);
+  }
+});

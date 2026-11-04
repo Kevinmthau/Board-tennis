@@ -194,7 +194,8 @@ function update(now: number, dt: number) {
         const p = pieceFor(s);
         if (!p?.present) { swings[s.side].reset(); continue; }
         if (epochs.get(p.id) !== p.epoch) { swings[s.side].reset(); epochs.set(p.id, p.epoch); }
-        controls.push({ side: s.side, pose: poseOf(p), controller: swings[s.side],
+        // A classification flap retains presence with a frozen pose, not observed rest.
+        controls.push({ side: s.side, pose: p.lastSeen === now ? poseOf(p) : null, controller: swings[s.side],
           footingAt: pose => ({ ...pose, outline: pieceFootprint(footprints, {
             ...p, x: pose.x, y: pose.y, orientation: pose.facingDeg - (footprints?.facingOffsetDeg ?? 0),
           })!.outline }) });

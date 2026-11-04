@@ -1,4 +1,4 @@
-import { COURT, canAttempt, inOwnHalf, observeVolleyFooting, stepMatch, strike, type Match, type Side, type MotionPoint, type Footing } from './pickleball';
+import { COURT, canAttempt, inKitchen, inOwnHalf, observeVolleyFooting, stepMatch, strike, type Match, type Side, type MotionPoint, type Footing } from './pickleball';
 import { type Point, type SwingHit, type SwingPose, SwingController } from './swing';
 import { ballDisplay } from './ball-display';
 
@@ -18,18 +18,37 @@ const copyMatch = (match: Match): Match => ({ ...match, ball: { ...match.ball },
   pendingOutcome: match.pendingOutcome ? { ...match.pendingOutcome } : null });
 const footing = (control: RallyControl, pose: SwingPose): Footing => control.footingAt?.(pose) ?? { ...pose, outline: [pose] };
 function followThrough(match: Match, controls: readonly RallyControl[], dt: number, endFraction = 1) {
+  const observations: { side: Side; at: number; feet: Footing }[] = [];
   for (const control of controls) {
     const guard = match.volleyGuards[control.side], pose = control.pose;
     if (!guard || !pose || dt <= 0) continue;
     const from = { ...guard }, turn = (((pose.facingDeg - from.facingDeg + 540) % 360 + 360) % 360 - 180) * endFraction;
     const dx = (pose.x - from.x) * endFraction, dy = (pose.y - from.y) * endFraction;
     const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 4), Math.ceil(Math.abs(turn) / 2));
-    for (let i = 1; i <= steps && match.volleyGuards[control.side]; i++) {
-      const t = i / steps;
-      observeVolleyFooting(match, control.side, footing(control, { ...pose,
+    const feetAt = (t: number) => footing(control, { ...pose,
         x: from.x + dx * t, y: from.y + dy * t,
-        facingDeg: from.facingDeg + turn * t }), dt / steps);
+        facingDeg: from.facingDeg + turn * t });
+    for (let i = 1; i <= steps; i++) {
+      let t = i / steps, feet = feetAt(t);
+      const enters = inKitchen(feet.outline);
+      if (enters) {
+        // Refine the first crossing so two players entering in one frame resolve by time.
+        let lo = (i - 1) / steps, hi = t;
+        for (let j = 0; j < 16; j++) {
+          const mid = (lo + hi) / 2;
+          if (inKitchen(feetAt(mid).outline)) hi = mid; else lo = mid;
+        }
+        t = hi; feet = feetAt(t);
+      }
+      observations.push({ side: control.side, at: dt * t, feet });
+      if (enters) break;
     }
+  }
+  observations.sort((a, b) => a.at - b.at || a.side - b.side);
+  const observedUntil = [0, 0];
+  for (const { side, at, feet } of observations) {
+    observeVolleyFooting(match, side, feet, at - observedUntil[side]);
+    observedUntil[side] = at;
   }
 }
 
