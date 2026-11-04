@@ -5,7 +5,7 @@ import { loadPieceFootprints, pieceFootprint, frontPoint, type PieceFootprints }
 import { noteContacts, pickPlayer, seated, selectorOpen } from './seats';
 import { PieceTracker, type TrackedPiece } from './tracking';
 import { SwingController, type SwingPose } from './swing';
-import { createMatch, nextServe, canStrike, inOwnHalf, type Side } from './pickleball';
+import { createMatch, nextServe, canStrike, inOwnHalf, serveSetup, type Side } from './pickleball';
 import { advanceRallyFrame, type RallyControl } from './rally-frame';
 import { readMatchSave, savedSideForPlayer, SAVE_VERSION, type SavedMatch } from './match-save';
 import { ballDisplay } from './ball-display';
@@ -228,6 +228,8 @@ function view(now: number): GameView {
 Object.defineProperty(window, 'TwistPickleballState', { configurable: true, get: () => JSON.parse(JSON.stringify({
   mode, match, seats: seats.map(s => ({ sessionId: s.player.sessionId, name: s.player.name, side: s.side, pieceId: s.pieceId, present: !!pieceFor(s)?.present })),
   placementCount, running,
+  // Browser placement reads the same geometry as the native serve cues and ball.
+  serveSetups: [serveSetup(0, match.score[0]), serveSetup(1, match.score[1])],
 })) });
 const frame = (now: number) => {
   frameId = null;

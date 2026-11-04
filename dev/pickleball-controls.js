@@ -4,7 +4,6 @@
   if (!host?.__simulated || !host.__sim?.contacts) return;
   const sim = host.__sim, svgNS = 'http://www.w3.org/2000/svg';
   const names = ['Baseball', 'Hockey', 'Cyclist', 'Soccer', 'Tennis', 'Football', 'Swimmer', 'Basketball'];
-  const homes = [{ x:270,y:720,orientation:260 }, { x:1650,y:360,orientation:80 }];
   const bindings = [
     { up:'KeyW',down:'KeyS',left:'KeyA',right:'KeyD',ccw:'KeyQ',cw:'KeyE',power:'ShiftLeft' },
     { up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight',ccw:'Comma',cw:'Period',power:'ShiftRight' },
@@ -98,7 +97,8 @@
       const side=requestedSide===0||requestedSide===1?requestedSide:Number.isFinite(x)?(x<960?0:1):sides[0]===null?0:1;
       if(sides[side]!==null){selected=sides[side];return sides[side];}
       if(contacts().length>=2)return null;
-      const home=homes[side];
+      const home=window.TwistPickleballState?.serveSetups?.[side];
+      if(!home)return null; // The game supplies the shared court geometry.
       glyph=Math.max(1,Math.min(8,Math.trunc(glyph)));
       if(!Number.isFinite(glyph))return null;
       nextId=Math.max(nextId,...contacts().map(p=>p.id+1));

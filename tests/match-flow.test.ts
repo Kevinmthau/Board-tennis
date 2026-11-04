@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {Board,BoardContactPhase,createMatch,serveBall,serveFromBottom,ballDisplay,draws,frames,texts,
+import {Board,BoardContactPhase,createMatch,serveBall,serveSetup,ballDisplay,draws,frames,texts,
   batch,pauses,resumes,roster,rosterCallbacks,replacementRequests,addRequests,errors,
   snapshot,tick,until,poses,contact,move,tap,newContactId,type Side} from './match-harness';
 
@@ -60,7 +60,7 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
   const placementCount=snapshot().placementCount;
   tick(30);assert.equal(snapshot().match.phase,'serve','stationary overlapping racket cannot serve itself');
 
-  move(0,{orientation:262});tick();
+  move(0,{orientation:266});tick();
   assert.equal(snapshot().match.phase,'rally');assert.equal(snapshot().match.lastHitter,0);
   assert.ok(snapshot().match.ball.vx>0);assert.equal(snapshot().match.rally,1);
 
@@ -112,15 +112,13 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
   tick(120);assert.equal(snapshot().match.phase,'serve','the next ball waits for a deliberate serve');
 
   function serveCurrent() {
-    const m=snapshot().match,side=m.server,bottom=serveFromBottom(side,m.score[side]);
-    const x=side===0?270:1650,y=bottom?720:360;
-    const angle=side===0?(bottom?260:100):(bottom?280:80);
-    const direction=(side===0)===bottom?1:-1;
+    const m=snapshot().match,side=m.server;
+    const {x,y,orientation:angle,turn:direction}=serveSetup(side,m.score[side]);
     move(side,{x:side===0?650:1270,y:540});tick(); // move clear before changing facing
     move(side,{orientation:angle});tick(2);
     move(side,{x,y});tick();
     assert.equal(snapshot().match.phase,'serve','translation cannot start a serve');
-    move(side,{orientation:angle+direction*2});tick();
+    move(side,{orientation:angle+direction*6});tick();
     assert.equal(snapshot().match.phase,'rally');assert.equal(snapshot().match.lastHitter,side);
   }
 
@@ -128,11 +126,10 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
   // then the right player does the same, restoring service without inventing points.
   for(const side of [0,1] as const){
     const m=snapshot().match;assert.equal(m.server,side);
-    const bottom=serveFromBottom(side,m.score[side]),y=bottom?720:360;
-    const angle=side===0?(bottom?260:100):(bottom?280:80);
-    const direction=(side===0)===bottom?-1:1; // a backwards tangent
+    const setup=serveSetup(side,m.score[side]),{x,y}=setup;
+    const angle=setup.orientation+setup.turn*20,direction=-setup.turn; // a backwards tangent
     move(side,{x:side===0?650:1270,y:540});tick();move(side,{orientation:angle});tick(2);
-    move(side,{x:side===0?270:1650,y});tick();move(side,{orientation:angle+direction*2});tick();
+    move(side,{x,y});tick();move(side,{orientation:angle+direction*6});tick();
     until(s=>s.match.phase==='point','a backwards serve goes out');
     assert.equal(snapshot().match.pointScored,false);assert.deepEqual(snapshot().match.score,[1,0]);
     assert.ok(texts.some(t=>t.includes('SIDE OUT')),'side out is communicated instead of +1');
@@ -195,12 +192,12 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
 
   // A real lift of the first piece confirms only that side; the other must still lift and replace.
   batch!([contact(poses[0],BoardContactPhase.Ended)]);tick(14);
-  poses[0]={...poses[0],id:newContactId(),x:270,y:720,orientation:260};
+  poses[0]={...poses[0],id:newContactId(),...serveSetup(0)};
   batch!([contact(poses[0],BoardContactPhase.Began)]);tick(3);
   assert.equal(snapshot().mode,'setup','one confirmation does not start a two-person match');
   assert.equal(snapshot().seats[0].side,0);assert.equal(snapshot().seats[1].side,null);
   batch!([contact(poses[1],BoardContactPhase.Ended)]);tick(14);
-  poses[1]={...poses[1],id:newContactId(),x:1650,y:360,orientation:80};
+  poses[1]={...poses[1],id:newContactId(),...serveSetup(1)};
   batch!([contact(poses[1],BoardContactPhase.Began)]);tick(3);
   assert.equal(snapshot().mode,'play');assert.equal(snapshot().match.phase,'serve');
   assert.deepEqual(snapshot().match.score,[0,0]);assert.equal(snapshot().match.rally,0);

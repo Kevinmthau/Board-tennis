@@ -2,6 +2,18 @@
 
 ## Current change — November 4, 2026
 
+The latest request is to make the court a lot bigger, verify hitting serves from both sides, then commit and push.
+The builder enlarged the proportional court from 1200 by 545.45 to 1488 by 676.36 pixels (53.76% more area),
+retaining 216-pixel service lanes. Fixed serve positions, placement cues, and browser starting poses share
+one layout; the native HUD stays clear of the ball and piece at both even- and odd-score serving positions.
+Names and scores occupy the two outer corners of each service lane, with bounded names, outside the court lines.
+Aligning the ball with the fixed piece position prevents a full approaching sweep from first contacting at
+an angle that sends the serve wide; direction still follows the measured racket tangent.
+Verify deliberate contact and a legal first bounce for both sides/parities with all eight measured Sports
+footprints, actual main-loop contacts, and browser controls. Physical Board checks remain open.
+
+### Previous change — Pickleball conversion
+
 The person requested pickleball rules, use of board-game-standards and board-games-ai, and a reviewed, merged PR.
 The baseline is `bd968cbd9eecd09d0b8f20301378b24bcea7d241`. The baseline tests pass: 161 passed, three external-catalog skips.
 Implemented on `codex/pickleball-rules` and merged through [PR #1](https://github.com/Kevinmthau/Board-tennis/pull/1) after clean-context review. The existing public repository and installed app identity stay fixed.

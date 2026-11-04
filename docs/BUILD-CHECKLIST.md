@@ -85,3 +85,12 @@
 - [x] PR reviewed in a clean context, all confirmed findings cleared, merged and branches cleaned up.
 - [ ] Pickleball build tested on Board with physical Sports pieces.
 - [ ] Uncoached two-person pickleball match and native save/restore tested.
+
+## Larger court and serving — November 4, 2026
+
+- [x] Enlarge the proportional court and align serve balls, cues, browser placements, and native HUD.
+- [x] Verify legal serve contact and first bounce for both ends, both score parities, and all Sports footprints (384 combinations).
+- [x] Exercise both players' even/odd serves through actual main-loop input and browser controls, including pause/redetection.
+- [x] Check the enlarged court and serve clearance in browser and native renderings (136 actual-font cases).
+- [x] Complete tests, TypeScript, web build, and Board package.
+- [ ] Confirm serving and enlarged-court feel with physical Sports pieces on Board.

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { pieceFootprint } from '../src/piece-footprints';
 import { COURT, PICKLEBALL, POINT_DELAY, canStrike, createMatch, inOwnHalf, nextServe,
-  stepMatch, strike, travelScale, serveBall, serviceTarget, legalServeFooting, inKitchen,
+  stepMatch, strike, travelScale, serveBall, serveSetup, serviceTarget, legalServeFooting, inKitchen,
   observeVolleyFooting, type Match, type Side, type Footing } from '../src/pickleball';
 
 function advance(match: Match, seconds: number): void {
@@ -88,7 +88,7 @@ test('service first landings include baseline, sideline and centerline, but excl
 test('all Sports footprints enforce service feet without moving the physical pose', () => {
   const data = JSON.parse(readFileSync('public/piece-footprints.json','utf8'));
   for (let glyphId = 1; glyphId <= 8; glyphId++) for (const server of [0,1] as const) {
-    const m = createMatch(server), p = { glyphId, x: server ? 1650 : 270, y: server ? 360 : 720, orientation: server ? 80 : 260 };
+    const m = createMatch(server), p = { glyphId, ...serveSetup(server) };
     const fp = pieceFootprint(data, p)!;
     assert.ok(legalServeFooting(m, fp.outline), `${glyphId}/${server}`);
     assert.equal(legalServeFooting(m, pieceFootprint(data, {...p,x:server?1540:380})!.outline), false);
@@ -158,7 +158,7 @@ test('a settled volley releases its pending winning point; missing time cannot s
 
 test('out calls happen on the first landing; a second bounce out still belongs to the hitter', () => {
   for (const count of [0,1] as const) {
-    const m=createMatch(); m.rally=3; landing(m,1600,540,count);
+    const m=createMatch(); m.rally=3; landing(m,COURT.right+40,540,count);
     assert.equal(m.pointWinner,count?0:1); assert.equal(m.reason,count?'double-bounce':'out');
     assert.equal(m.score[0],count);
   }

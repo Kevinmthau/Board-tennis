@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Board,BoardContactPhase,BoardContactType,BoardPlayerType,type BoardContact} from '@board.fun/web-sdk';
-import {createMatch,serveBall,serveFromBottom,type Match,type Side} from '../src/pickleball';
+import {createMatch,serveBall,serveFromBottom,serveSetup,type Match,type Side} from '../src/pickleball';
 import {ballDisplay} from '../src/ball-display';
 
 // An assembled-game walk. Only normal SDK contact batches, clock ticks and menu callbacks
@@ -94,8 +94,8 @@ function until(predicate:(s:Snapshot)=>boolean,message:string,maxFrames=1800){
 }
 let nextContact=100;
 const poses:[Pose,Pose]=[
-  {id:nextContact++,glyph:5,x:270,y:720,orientation:260},
-  {id:nextContact++,glyph:5,x:1650,y:360,orientation:80},
+  {id:nextContact++,glyph:5,...serveSetup(0)},
+  {id:nextContact++,glyph:5,...serveSetup(1)},
 ];
 function contact(p:Pose,phase=BoardContactPhase.Moved):BoardContact{
   return {contactId:p.id,glyphId:p.glyph,x:p.x,y:p.y,orientation:p.orientation,phase,type:BoardContactType.Glyph,isTouched:true}as BoardContact;
@@ -109,7 +109,7 @@ function tap(x:number,y:number){
 }
 
 export const newContactId=()=>nextContact++;
-export {Board,BoardContactPhase,createMatch,serveBall,serveFromBottom,ballDisplay,draws,frames,texts,
+export {Board,BoardContactPhase,createMatch,serveBall,serveFromBottom,serveSetup,ballDisplay,draws,frames,texts,
   batch,pauses,resumes,roster,rosterCallbacks,replacementRequests,addRequests,errors,
   snapshot,tick,until,poses,contact,move,tap};
 export type {Side};

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { advanceRallyFrame, type RallyControl } from '../src/rally-frame';
-import { COURT, createMatch, strike, type Footing, type Match } from '../src/pickleball';
+import { COURT, createMatch, serveSetup, strike, type Footing, type Match } from '../src/pickleball';
 import { SwingController, type SwingPose } from '../src/swing';
 import { ballDisplay } from '../src/ball-display';
 import { pieceFootprint, type PieceFootprints } from '../src/piece-footprints';
@@ -97,11 +97,12 @@ test('a disabled or wrong-half controller cannot return the final ball', () => {
 test('serve uses the same strike and remaining frame movement, then point and result states stay safe', () => {
   const match = createMatch();
   const controller = new SwingController();
-  const control: RallyControl = { side: 0, pose: pose(260, 270, 720), controller };
+  const home = serveSetup(0);
+  const control: RallyControl = { side: 0, pose: pose(home.orientation, home.x, home.y), controller };
   assert.equal(advanceRallyFrame(match, 0, 0, [control]).hit, null);
-  control.pose = pose(264, 270, 720);
+  control.pose = pose(home.orientation + 6, home.x, home.y);
   const first = advanceRallyFrame(match, .016, 16, [control]);
-  assert.ok(first.hit); assert.equal(match.phase, 'rally'); assert.ok(match.ball.x > 240);
+  assert.ok(first.hit); assert.equal(match.phase, 'rally'); assert.ok(match.ball.x > home.x);
   assert.equal(match.rally, 1);
   match.phase = 'point'; match.pointTimer = 0;
   assert.equal(advanceRallyFrame(match, .05, 66, [control]).point, false);
@@ -185,7 +186,7 @@ test('a receiver can volley during the frame that first crosses the net', () => 
       vx: side === 0 ? -1000 : 1000, vy: 0, vz: 20 };
     match.rally = 3; match.gravity = 2;
     const controller = new SwingController();
-    const x = side === 0 ? 740 : 1180;
+    const x = side === 0 ? COURT.kitchenLeft - 4 : COURT.kitchenRight + 4;
     const control: RallyControl = { side, pose: pose(side === 0 ? 10 : 170, x, 786), controller };
     assert.equal(advanceRallyFrame(match, 0, 0, [control]).hit, null);
     control.pose = pose(side === 0 ? -10 : 190, x, 786);

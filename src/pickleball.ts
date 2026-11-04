@@ -24,8 +24,9 @@ export interface Match {
   winner: Side | null; pointWinner: Side | null; reason: PointReason; pointTimer: number;
   pointScored: boolean; volleyGuards: [VolleyGuard | null, VolleyGuard | null]; pendingOutcome: Outcome | null;
 }
-const scale = 1200 / 44;
-export const COURT = { left: 360, right: 1560, top: 540 - 10 * scale, bottom: 540 + 10 * scale,
+// Fill more of the glass while retaining a 216 px service lane at each end.
+const scale = 1488 / 44;
+export const COURT = { left: 216, right: 1704, top: 540 - 10 * scale, bottom: 540 + 10 * scale,
   net: 960, middle: 540, kitchenLeft: 960 - 7 * scale, kitchenRight: 960 + 7 * scale } as const;
 export const BALL_RADIUS = 18;
 export const POINT_DELAY = 1.4;
@@ -41,8 +42,20 @@ export const inOwnHalf = (side: Side, x: number): boolean => Number.isFinite(x)
   && (side === 0 ? x < COURT.net : x > COURT.net);
 /** Screen y increases downward. The left player's right-hand service court is the lower one. */
 export const serveFromBottom = (side: Side, score: number): boolean => (score % 2 === 0) === (side === 0);
+/** Fixed teaching position, never a clamp or a substitute for the observed physical pose. */
+export function serveSetup(side: Side, score = 0) {
+  const bottom = serveFromBottom(side, score);
+  return { x: side === 0 ? COURT.left - 84 : COURT.right + 84,
+    y: COURT.middle + (bottom ? 180 : -180),
+    orientation: side === 0 ? (bottom ? 260 : 100) : (bottom ? 280 : 80),
+    turn: (side === 0) === bottom ? 1 : -1 };
+}
 export function serveBall(side: Side, score = 0): Ball {
-  return { x: side === 0 ? 240 : 1680, y: serveFromBottom(side, score) ? 550 : 530, vx: 0, vy: 0, z: 0, vz: 0 };
+  const setup = serveSetup(side, score);
+  // A line approaching from either serving half first contacts at a shallow diagonal.
+  // Offsetting the ball sideways made an ordinary full sweep send the serve out wide.
+  return { x: setup.x,
+    y: COURT.middle + (serveFromBottom(side, score) ? 10 : -10), vx: 0, vy: 0, z: 0, vz: 0 };
 }
 export function serviceTarget(match: Match) {
   const bottom = !serveFromBottom(match.server, match.score[match.server]);

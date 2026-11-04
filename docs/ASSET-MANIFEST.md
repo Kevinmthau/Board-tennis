@@ -41,3 +41,6 @@ Point-pop placement/lifecycle in `src/main.ts` uses the existing Kabel font and 
 
 October 27, 2026 code review: runtime, tracking, seating/save flow, swing resolution, and procedural HUD layout changed.
 No media assets or third-party dependencies were added or changed. New test files are verification source and are not shipped in the game packages.
+
+November 4, 2026 larger-court update: procedural court/HUD geometry and browser control placement changed.
+No media, models, fonts, SDK assets, or third-party dependencies were added or modified.

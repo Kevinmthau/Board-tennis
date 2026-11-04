@@ -78,3 +78,14 @@ Renamed the game Twist Pickleball while retaining its installed IDs, two human s
 Unit and assembled-input checks cover rules, tracking, pause, complete match, result, rematch, and setup changes. Browser and actual-font checks cover the new flow and layouts. Physical Board and uncoached human checks remain open; review and publication evidence is recorded in the acceptance ledger.
 Independent review reproduced and prompted a fix for lost pre-contact volley settling time, which could cause a false kitchen fault. It also confirmed the real platform's build-based restore boundary; documentation now distinguishes legacy payload decoding from cross-build delivery.
 The same review found and prompted fixes for roster-ordered simultaneous kitchen faults and false settling during glyph-classification gaps. Added chronological footprint resolution and classified-pose gating, with real geometry and assembled-input regressions.
+
+## November 4, 2026 — Larger court and serving from both ends
+
+The person requested a much bigger court, working serve hits for both sides, then a commit and push.
+Expanded the proportional court by 53.76% in area while keeping room behind each baseline. Moved the
+stationary serve balls and placement cues with the baselines, and made browser starting positions use
+the same serving layout. Put the native HUD in the outer service-lane corners and kept boundary cues aligned.
+Reproduced the old full-sweep serve going out on both ends and both score parities. Aligning the ball with
+the piece's teaching position makes the first contact a playable diagonal while preserving the real tangent.
+Verification covers both serving ends, both score parities, measured Sports footprints, and deliberate
+rotation; placement, translation, and menu return still cannot start a serve.

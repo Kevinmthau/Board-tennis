@@ -2,7 +2,7 @@ import { gameFont } from './runtime';
 import { drawTitle } from './title';
 import type { Box } from './howto';
 import { bake } from './fx';
-import { COURT, PICKLEBALL, FAULTS, mustBounce, serviceTarget, serveFromBottom, travelScale, type Match, type Side } from './pickleball';
+import { COURT, PICKLEBALL, FAULTS, mustBounce, serviceTarget, serveSetup, travelScale, type Match, type Side } from './pickleball';
 import { ballDisplay } from './ball-display';
 import type { SwingPose } from './swing';
 
@@ -342,9 +342,10 @@ function hud(ctx: CanvasRenderingContext2D, v: GameView) {
     text(ctx, 'WIN BY 2', 960, 143, 48, C.faded);
   } else {
     for (const side of [0, 1] as Side[]) {
-      ctx.save(); ctx.translate(side === 0 ? 155 : 1765, 540); ctx.rotate(side === 0 ? Math.PI / 2 : -Math.PI / 2);
-      text(ctx, seatFor(v, side)?.name ?? 'Player', 150, 45, 48, TEAM[side], 620);
-      text(ctx, String(v.match.score[side]), -340, 30, 88, C.cream, 320, 48, 1);
+      // Use the corners of the service lane, leaving both serving halves and the ball clear.
+      ctx.save(); ctx.translate(serveSetup(side).x, COURT.middle); ctx.rotate(side === 0 ? Math.PI / 2 : -Math.PI / 2);
+      text(ctx, seatFor(v, side)?.name ?? 'Player', 388, 0, 48, TEAM[side], 208);
+      text(ctx, String(v.match.score[side]), -388, 0, 88, C.cream, 208, 48, 1);
       ctx.restore();
     }
   }
@@ -364,8 +365,8 @@ function bounceBadgePosition(v: GameView, x: number, y: number) {
   // Reserve the HUD and instruction slots so a court contact never covers their text.
   const zones: Box[] = v.browser
     ? [{ x: 160, y: 48, width: 1600, height: 132 }, { x: 48, y: 920, width: 1824, height: 112 }]
-    : [{ x: 48, y: 48, width: 222, height: 984 }, { x: 1650, y: 48, width: 222, height: 984 },
-      { x: 330, y: 140, width: 145, height: 800 }, { x: 1445, y: 140, width: 145, height: 800 }];
+    : [48, COURT.right].flatMap(x => [48, 820].map(y => ({ x, y, width: 168, height: 212 }))).concat([
+      { x: 330, y: 140, width: 145, height: 800 }, { x: 1445, y: 140, width: 145, height: 800 }]);
   if (v.match.phase === 'point' && v.match.pointWinner !== null) {
     const pop = pointPopPosition(v.match.pointWinner, v.browser);
     zones.push(v.browser ? { x: pop.x - 110, y: pop.y - 190, width: 220, height: 300 }
@@ -388,18 +389,20 @@ function play(ctx: CanvasRenderingContext2D, v: GameView) {
   hud(ctx, v);
   const m = v.match;
   if (m.phase === 'serve') {
-    const box = serviceTarget(m), bottom = serveFromBottom(m.server, m.score[m.server]);
+    const box = serviceTarget(m), setup = serveSetup(m.server, m.score[m.server]);
     ctx.save(); ctx.globalAlpha = .18 + .06 * Math.sin(v.now / 400); ctx.fillStyle = C.lime;
     ctx.fillRect(box.left + 6, box.top + 6, box.right - box.left - 12, box.bottom - box.top - 12);
     // A fixed service area requests a legal position; it never follows a physical piece.
-    ctx.fillRect(m.server === 0 ? 210 : 1580, bottom ? 620 : 290, 130, 170);
+    ctx.fillRect(setup.x - 78, setup.y - 90, 156, 180);
     ctx.restore();
   }
 
   if (m.phase === 'rally' && travelScale(m) < .7) {
     // Discreet boundary ticks mark the receiving window without following the controller.
-    const x = m.receiver === 0 ? 320 : 1600;
-    ctx.save(); ctx.globalAlpha = .4; line(ctx, x, 278, x, 338, C.lime, 6); line(ctx, x, 742, x, 802, C.lime, 6); ctx.restore();
+    const x = m.receiver === 0 ? COURT.left - 24 : COURT.right + 24;
+    ctx.save(); ctx.globalAlpha = .4;
+    line(ctx, x, COURT.top + 12, x, COURT.top + 72, C.lime, 6);
+    line(ctx, x, COURT.bottom - 72, x, COURT.bottom - 12, C.lime, 6); ctx.restore();
   }
   for (const r of v.rackets) {
     const a = r.pose.facingDeg * Math.PI / 180;

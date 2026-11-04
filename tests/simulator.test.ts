@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createContext,runInContext} from 'node:vm';
+import {serveSetup} from '../src/pickleball';
 
 // Run the real adapters at a small DOM boundary, including ordinary sensor wire frames.
 function browser() {
@@ -30,6 +31,7 @@ function browser() {
     addEventListener(){},
   };
   const window:any={document,innerWidth:1000,innerHeight:670,performance:{now:()=>now},
+    TwistPickleballState:{serveSetups:[serveSetup(0),serveSetup(1)]},
     __board:{onAppVisibility(){},onPauseResult(){},onPlayersChanged(){playerChanges++;},resolve(){},reject(){}},
     addEventListener:(type:string,cb:Function)=>listeners.set(type,[...(listeners.get(type)??[]),cb]),
     requestAnimationFrame:(cb:Function)=>{frames.push(cb);return frames.length;},location:{reload(){}},
@@ -54,8 +56,8 @@ function browser() {
 test('each side explicitly places one Sports piece; duplicate glyphs remain separate',()=>{
   const b=browser(),left=b.api.placeForSide(0,5),right=b.api.placeForSide(1,5);b.tick();
   assert.notEqual(left,right);assert.equal(b.api.pieces().length,2);
-  assert.equal(b.api.pieces()[0].x,270);assert.equal(b.api.pieces()[0].y,720);assert.equal(b.api.pieces()[0].orientation,260);
-  assert.equal(b.api.pieces()[1].x,1650);assert.equal(b.api.pieces()[1].orientation,80);
+  assert.equal(b.api.pieces()[0].x,serveSetup(0).x);assert.equal(b.api.pieces()[0].y,720);assert.equal(b.api.pieces()[0].orientation,260);
+  assert.equal(b.api.pieces()[1].x,serveSetup(1).x);assert.equal(b.api.pieces()[1].orientation,80);
   assert.equal(b.api.placeForSide(0,3),left,'placing an occupied side does not silently replace its piece');
   assert.equal(b.api.lift(left),true);assert.equal(b.api.pieces().length,1);assert.equal(b.api.pieces()[0].id,right);
   assert.equal(b.api.placeForSide(0,3)!==null,true);
@@ -63,13 +65,13 @@ test('each side explicitly places one Sports piece; duplicate glyphs remain sepa
 
 test('both players move and rotate simultaneously with independent power keys',()=>{
   const b=browser(),left=b.api.placeForSide(0),right=b.api.placeForSide(1);b.tick();
-  for(const code of ['KeyA','KeyW','KeyE','ArrowRight','ArrowDown','Period','ShiftRight'])b.dispatch('keydown',{code});
+  for(const code of ['KeyD','KeyW','KeyE','ArrowLeft','ArrowDown','Period','ShiftRight'])b.dispatch('keydown',{code});
   b.tick(15);
   const l=b.api.pieces().find((p:any)=>p.id===left),r=b.api.pieces().find((p:any)=>p.id===right);
-  assert.ok(l.x<270&&l.y<720);assert.ok(r.x>1650&&r.y>360);
+  assert.ok(l.x>serveSetup(0).x&&l.y<720);assert.ok(r.x<serveSetup(1).x&&r.y>360);
   assert.ok(Math.abs(l.orientation-305)<1e-8);assert.ok(Math.abs(r.orientation-200)<1e-8);
-  assert.ok(Math.abs(Math.hypot(l.x-270,l.y-720)-100)<1e-8,'diagonal movement is normalized');
-  for(const code of ['KeyA','KeyW','KeyE','ArrowRight','ArrowDown','Period','ShiftRight'])b.dispatch('keyup',{code});
+  assert.ok(Math.abs(Math.hypot(l.x-serveSetup(0).x,l.y-720)-100)<1e-8,'diagonal movement is normalized');
+  for(const code of ['KeyD','KeyW','KeyE','ArrowLeft','ArrowDown','Period','ShiftRight'])b.dispatch('keyup',{code});
   b.tick(5);assert.equal(b.api.pieces().find((p:any)=>p.id===left).orientation,l.orientation);
 });
 
@@ -83,12 +85,13 @@ test('keyboard and pointer movement stay in the assigned half',()=>{
 test('two touch pointers can twist both pieces independently with no jump when grabbed',()=>{
   const b=browser(),left=b.api.placeForSide(0),right=b.api.placeForSide(1);b.tick();
   const handles=b.elements.filter(e=>(e.attrs['aria-label']??'').includes('rotation handle'));
-  const first=b.eventFor(handles[0],1,130,720),second=b.eventFor(handles[1],2,1510,360);
+  const leftHome=serveSetup(0),rightHome=serveSetup(1);
+  const first=b.eventFor(handles[0],1,leftHome.x-140,leftHome.y),second=b.eventFor(handles[1],2,rightHome.x-140,rightHome.y);
   handles[0].handlers.get('pointerdown')[0](first);handles[1].handlers.get('pointerdown')[0](second);
   assert.equal(b.api.pieces().find((p:any)=>p.id===left).orientation,260);
   assert.equal(b.api.pieces().find((p:any)=>p.id===right).orientation,80);
-  b.dispatch('pointermove',b.eventFor(handles[0],1,270,580));
-  b.dispatch('pointermove',b.eventFor(handles[1],2,1650,500));
+  b.dispatch('pointermove',b.eventFor(handles[0],1,leftHome.x,leftHome.y-140));
+  b.dispatch('pointermove',b.eventFor(handles[1],2,rightHome.x,rightHome.y+140));
   assert.equal(b.api.pieces().find((p:any)=>p.id===left).orientation,350);
   assert.equal(b.api.pieces().find((p:any)=>p.id===right).orientation,350);
   b.dispatch('pointerup',first);assert.equal(b.api.isDragging,true);
@@ -111,10 +114,10 @@ test('pause freezes both pieces and recovers same-glyph sides under new contact 
   b.dispatch('keydown',{key:'p',code:'KeyP'});b.tick(10);
   const after=b.api.pieces(),ids=b.api.sides;
   assert.notEqual(ids[0],left);assert.notEqual(ids[1],right);
-  assert.equal(after.find((p:any)=>p.id===ids[0]).x,270);assert.equal(after.find((p:any)=>p.id===ids[1]).x,1650);
+  assert.equal(after.find((p:any)=>p.id===ids[0]).x,serveSetup(0).x);assert.equal(after.find((p:any)=>p.id===ids[1]).x,serveSetup(1).x);
   b.tick(30);
-  assert.equal(b.api.pieces().find((p:any)=>p.x===270).orientation,before.find((p:any)=>p.x===270).orientation);
-  assert.equal(b.api.pieces().find((p:any)=>p.x===1650).orientation,before.find((p:any)=>p.x===1650).orientation);
+  assert.equal(b.api.pieces().find((p:any)=>p.x===serveSetup(0).x).orientation,before.find((p:any)=>p.x===serveSetup(0).x).orientation);
+  assert.equal(b.api.pieces().find((p:any)=>p.x===serveSetup(1).x).orientation,before.find((p:any)=>p.x===serveSetup(1).x).orientation);
 });
 
 test('blur clears held keyboard motion and all active touch drags',()=>{
