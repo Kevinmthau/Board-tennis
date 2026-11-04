@@ -77,7 +77,7 @@
 - [x] Read both requested Board standards sources, record design and conflicts, and verify baseline tests.
 - [x] Singles side-out scoring, service parity, diagonal serves, and line calls implemented and tested.
 - [x] Two-bounce rule, kitchen footprint/follow-through, net and boundary faults implemented and tested.
-- [x] Saved tennis matches migrate and new pickleball state round-trips.
+- [x] Legacy payload decoding and new pickleball round trips tested; platform per-build run reset documented.
 - [x] Court, ball, title, help, server cues, side-out feedback, and browser controls match pickleball.
 - [x] Complete input-driven match, result, rematch, pause, tracking, and setup tests pass.
 - [x] TypeScript, complete tests, web build, and Board package pass.

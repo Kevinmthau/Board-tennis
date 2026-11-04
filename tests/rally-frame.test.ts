@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { advanceRallyFrame, type RallyControl } from '../src/rally-frame';
-import { createMatch, strike, type Match } from '../src/pickleball';
+import { COURT, createMatch, strike, type Footing, type Match } from '../src/pickleball';
 import { SwingController, type SwingPose } from '../src/swing';
 import { ballDisplay } from '../src/ball-display';
+import { pieceFootprint, type PieceFootprints } from '../src/piece-footprints';
 
 const pose = (angle: number, x = 1884, y = 370): SwingPose => ({ x, y, facingDeg: angle, frontReach: 70 });
 function incoming(): Match {
@@ -232,5 +234,34 @@ test('a return crossing back in the same frame rearms the opponent for the next 
     receiving.pose = pose(215, 1120, 896);
     assert.equal(advanceRallyFrame(match, .05, 100, controls).hit?.side, 1);
     assert.equal(match.rally, 5);
+  }
+});
+
+test('a swept return preserves the previous volley’s full settling time before a kitchen entry', () => {
+  const footprints: PieceFootprints = JSON.parse(readFileSync('public/piece-footprints.json', 'utf8'));
+  const footingAt = (p: SwingPose): Footing => ({ ...p, outline: pieceFootprint(footprints,
+    { ...p, glyphId: 5, orientation: p.facingDeg - footprints.facingOffsetDeg })!.outline });
+  const extent = Math.max(...footingAt(pose(0, 0, 540)).outline.map(p => p.x));
+  for (const initialRest of [.05, .17]) for (const reverseControls of [false, true]) {
+    const match = createMatch(); strike(match, 0, { vx: 1000, vy: 0 });
+    Object.assign(match, { ball: { x: 1370, y: 540, z: 100, vx: 1000, vy: 0, vz: 0 },
+      rally: 3, crossedNet: true, gravity: 800 });
+    const leftPose = pose(0, COURT.kitchenLeft - extent - 1, 540);
+    match.volleyGuards[0] = { x: leftPose.x, y: leftPose.y, facingDeg: 0,
+      anchorX: leftPose.x, anchorY: leftPose.y, anchorFacing: 0, stillFor: initialRest };
+    const left: RallyControl = { side: 0, pose: leftPose, controller: new SwingController(), footingAt };
+    const right = rightControl(match, pose(70, 1420, ballDisplay(match.ball).y - 170));
+    right.pose = { ...right.pose!, facingDeg: 125 }; right.footingAt = footingAt;
+    const controls = reverseControls ? [right, left] : [left, right];
+    const result = advanceRallyFrame(match, .05, 50, controls);
+    assert.equal(result.hit?.side, 1, 'exercise a real swept return halfway through the frame');
+    const settled = initialRest + .05 >= .2;
+    if (settled) assert.equal(match.volleyGuards[0], null);
+    else assert.ok(Math.abs(match.volleyGuards[0]!.stillFor - .1) < 1e-9);
+    left.pose = { ...leftPose, x: leftPose.x + 50 };
+    advanceRallyFrame(match, .05, 100, controls);
+    assert.equal(match.reason, settled ? null : 'kitchen', 'only unsettled follow-through restricts a later entry');
+    assert.equal(match.server, settled ? 0 : 1);
+    assert.deepEqual(match.score, [0, 0]);
   }
 });

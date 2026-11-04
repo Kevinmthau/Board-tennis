@@ -17,16 +17,17 @@ const copyMatch = (match: Match): Match => ({ ...match, ball: { ...match.ball },
   volleyGuards: match.volleyGuards.map(g => g ? { ...g } : null) as Match['volleyGuards'],
   pendingOutcome: match.pendingOutcome ? { ...match.pendingOutcome } : null });
 const footing = (control: RallyControl, pose: SwingPose): Footing => control.footingAt?.(pose) ?? { ...pose, outline: [pose] };
-function followThrough(match: Match, controls: readonly RallyControl[], dt: number) {
+function followThrough(match: Match, controls: readonly RallyControl[], dt: number, endFraction = 1) {
   for (const control of controls) {
     const guard = match.volleyGuards[control.side], pose = control.pose;
     if (!guard || !pose || dt <= 0) continue;
-    const from = { ...guard }, turn = ((pose.facingDeg - from.facingDeg + 540) % 360 + 360) % 360 - 180;
-    const steps = Math.max(1, Math.ceil(Math.hypot(pose.x - from.x, pose.y - from.y) / 4), Math.ceil(Math.abs(turn) / 2));
+    const from = { ...guard }, turn = (((pose.facingDeg - from.facingDeg + 540) % 360 + 360) % 360 - 180) * endFraction;
+    const dx = (pose.x - from.x) * endFraction, dy = (pose.y - from.y) * endFraction;
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 4), Math.ceil(Math.abs(turn) / 2));
     for (let i = 1; i <= steps && match.volleyGuards[control.side]; i++) {
       const t = i / steps;
       observeVolleyFooting(match, control.side, footing(control, { ...pose,
-        x: from.x + (pose.x - from.x) * t, y: from.y + (pose.y - from.y) * t,
+        x: from.x + dx * t, y: from.y + dy * t,
         facingDeg: from.facingDeg + turn * t }), dt / steps);
     }
   }
@@ -77,6 +78,9 @@ export function advanceRallyFrame(match: Match, dt: number, now: number,
     // The second landing ends the possession immediately; a simultaneous or later twist cannot save it.
     if (exited && contactElapsed >= (trace.at(-1)?.time ?? 0) - 1e-9) continue;
     const returned = copyMatch(match);
+    // Replaying a contact must retain the earlier player's observed motion and settling time.
+    // Stop at the contact pose here; new volley guards receive only the remaining frame below.
+    followThrough(returned, controls, contactElapsed, duration > 0 ? contactElapsed / duration : 0);
     stepMatch(returned, contactElapsed);
     // Sweep points are the lifted visible ball. Keep its stepped ground position and height
     // for the outgoing arc; copying the visible y here would teleport the landing path.

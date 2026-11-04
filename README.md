@@ -48,6 +48,6 @@ python3 -m http.server 5177 --bind 127.0.0.1 --directory web-dist
 
 The installed app identity remains fixed in `board.config.json`. The Sports model, measured footprints, canonical product art, and vendored SDK beta.8 are unchanged. The bundled Russo One font replaces the starter's Kabel font under the requested Board standards. The title-card export is `art/twist-pickleball-title-card.png`; its procedural source is `drawTitleCard()` in `src/view.ts`.
 
-Tennis saves retain scores, players, and longest rallies; active rallies restart at a pickleball serve. Completed tennis results remain historical results. New saves retain service, bounce obligations, and unresolved volley follow-through.
+The platform keeps runs per build, so installing this update starts a new match. The decoder accepts older tennis payloads if supplied, but the standard platform does not deliver them across build changes. Pickleball saves within this build retain service, bounce obligations, and unresolved volley follow-through.
 
 See [the design plan](docs/PLAN.md), [build checklist](docs/BUILD-CHECKLIST.md), [acceptance ledger](docs/ACCEPTANCE-LEDGER.md), and [asset sources](docs/ASSET-MANIFEST.md). Browser and unit checks do not establish physical Board tracking or play feel.

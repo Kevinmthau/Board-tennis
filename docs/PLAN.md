@@ -32,7 +32,8 @@ Two human players use the existing Sports pieces and twist controls for singles 
 - A ball's court anchor is its ground-contact location. Its lifted rendering remains the racket-contact target.
 - A backward shot is not corrected. It can fault at the net, ground, table edge, or the existing eight-second dead-shot limit.
 - The serve ball waits for deliberate rotation. Placement, translation, menu return, and reacquisition never strike.
-- Saved tennis scores, seats, and best rallies migrate. Active tennis rallies restart at a pickleball serve; completed results remain historical results.
+- The decoder accepts legacy tennis payloads and preserves their scores, seats, best rallies, and historical results when supplied; an active legacy rally becomes a pickleball serve.
+- Platform runs are scoped to the packaged content hash. Installing this changed build starts a new match: the platform does not deliver the previous build's run to the decoder. Keep this platform-owned boundary; do not promise cross-build migration or bypass it.
 - New saves preserve pickleball service, bounce obligations, and unfinished volley follow-through.
 
 ## Players, teaching, first minute, and result
@@ -60,7 +61,7 @@ Sport source: [USA Pickleball rules summary](https://usapickleball.org/rules/sum
 | Physical footprint represents feet | builder | Board reports pieces rather than human body pose |
 | Stable piece ends volley momentum | builder | Measurable tabletop equivalent of regaining balance |
 | Keep platform-owned menus, saves, audio, name | project instructions | PLATFORM.md supersedes older standards examples |
-| Keep installed IDs, Sports model, vendored SDK, public repo | project/person instructions | Preserve installation, saves, and repository continuity |
+| Keep installed IDs, Sports model, vendored SDK, public repo | project/person instructions | Preserve installation identity and repository continuity; run invalidation follows PLATFORM.md |
 | Keep two seat-facing views and shared result | project instructions | Simultaneous players must read their own edge |
 | Vibes: sporty, sunny, arcade | builder | Retain the existing blue-court visual world |
 | Russo One 400 | builder | Approved sports font; selected over Passion One and Squada One for wider, readable labels |

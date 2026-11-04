@@ -12,7 +12,7 @@ export function savedSideForPlayer(saved: SavedMatch | null, player: { sessionId
     ?? saved?.sides.find(s => s.playerId === undefined && s.sessionId === player.sessionId)?.side;
 }
 
-/** Tennis saves retain scores and historical results; active rallies restart with pickleball rules. */
+/** Decode supplied legacy payloads. The standard platform filters out runs from other content builds. */
 export function readMatchSave(value: unknown): SavedMatch | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, any>, m = raw.match;

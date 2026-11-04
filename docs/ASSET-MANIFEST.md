@@ -18,6 +18,12 @@
 | `public/piece-art/8.png` | Basketball equipment identification | Same Sports catalog; unchanged | Canonical Board product art for Board game use |
 | `src/view.ts` | Court, paddles, title compositions, perforated ball and interface artwork | Original procedural Canvas artwork for this game | Original work |
 | `src/sound.ts` | Racket, point, win, placement sounds and breeze | Original WebAudio synthesis for this game | Original work |
+| `index.html` (packed) | Runtime entry page | Repository `index.html`, Vite and Board pack transforms | Original application page and Board packaging |
+| `assets/index-*.js` (packed) | Compiled game and SDK code | `src/`, vendored Board SDK, Vite build | Original game source and Board SDK |
+| `assets/index-*.css` (packed) | Full-screen canvas styling | `src/style.css`, Vite build | Original game styling |
+| `board-platform.js` (packed) | Platform-owned menu, save, audio and app lifecycle | Repository `platform/board-platform.js`; only the pack-time configuration is filled in | Board platform runtime |
+| `harness-config.json` (packed) | App identity and device harness configuration | Generated from `board.config.json` by Board pack | Original configuration |
+| `browser-host.js`, `player-selector.js`, `pickleball-controls.js` (web only) | SDK simulation, local roster, virtual Sports controls | Repository `dev/`; adapted from board-games-ai starter and original controls | Board starter and original application code |
 
 Sports model SHA-256: `4d75343e149b72f8410cad10f518c64791634ae6e6932880088a34c164026ad9`.
 
