@@ -82,6 +82,6 @@
 - [x] Complete input-driven match, result, rematch, pause, tracking, and setup tests pass.
 - [x] TypeScript, complete tests, web build, and Board package pass.
 - [x] Actual-font browser screens, help pages, serve, bounce, and side out checked.
-- [ ] PR reviewed in a clean context, P0/P1 findings cleared, merged and branches cleaned up.
+- [x] PR reviewed in a clean context, all confirmed findings cleared, merged and branches cleaned up.
 - [ ] Pickleball build tested on Board with physical Sports pieces.
 - [ ] Uncoached two-person pickleball match and native save/restore tested.

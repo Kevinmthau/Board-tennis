@@ -4,7 +4,7 @@
 
 The person requested pickleball rules, use of board-game-standards and board-games-ai, and a reviewed, merged PR.
 The baseline is `bd968cbd9eecd09d0b8f20301378b24bcea7d241`. The baseline tests pass: 161 passed, three external-catalog skips.
-The builder owns the `codex/pickleball-rules` checkout. The existing public repository and installed app identity stay fixed.
+Implemented on `codex/pickleball-rules` and merged through [PR #1](https://github.com/Kevinmthau/Board-tennis/pull/1) after clean-context review. The existing public repository and installed app identity stay fixed.
 
 ## Summary and how to play
 
