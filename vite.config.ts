@@ -27,7 +27,7 @@ const browserHost = (): Plugin => ({
     { tag: "script", children: readFileSync(new URL("./dev/browser-host.js", import.meta.url), "utf8"), injectTo: "head-prepend" },
     { tag: "script", children: devGame(), injectTo: "head" },
     { tag: "script", children: readFileSync(new URL("./dev/player-selector.js", import.meta.url), "utf8"), injectTo: "head" },
-    { tag: "script", children: readFileSync(new URL("./dev/tennis-controls.js", import.meta.url), "utf8"), injectTo: "head" },
+    { tag: "script", children: readFileSync(new URL("./dev/pickleball-controls.js", import.meta.url), "utf8"), injectTo: "head" },
   ],
 });
 

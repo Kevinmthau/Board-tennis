@@ -258,7 +258,7 @@ function installBrowserHost(win         = window)          {
   const onKey = (e               ) => {
     if (/^(INPUT|TEXTAREA|SELECT)$/.test((e.target                  )?.tagName ?? "")) return;
     const k = e.key.length === 1 ? e.key.toUpperCase() : e.key;
-    if (!menuOpen) return void (k === "P" || k === "Escape" ? openMenu() : k === "Backspace" && !win.TwistTennisSim && liftResting());
+    if (!menuOpen) return void (k === "P" || k === "Escape" ? openMenu() : k === "Backspace" && !win.TwistPickleballSim && liftResting());
     e.preventDefault();
     if (k === "Escape" || k === "Enter" || k === "P") closeMenu("RESUME");
     else if (k === "Q") closeMenu("EXIT_GAME_UNSAVED");

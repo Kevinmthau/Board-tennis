@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setCanvasFactory } from '../src/fx';
 import { drawGame, type GameView } from '../src/view';
-import { createMatch, type Side } from '../src/tennis';
+import { createMatch, type Side } from '../src/pickleball';
 
 type Label = { text: string; size: number; left: number; right: number; top: number; bottom: number };
 // Record the actual text rendering calls, including sizes passed through view.text().
@@ -61,7 +61,7 @@ test('browser HUD fits names, three-digit scores and full-size scoring rules wit
   v.match.score = [999, 999];
   drawGame(ctx, v);
   const hud = labels.filter(label => label.top < 180);
-  assert.ok(hud.some(label => label.text === 'FIRST TO 7' && label.size >= 48));
+  assert.ok(hud.some(label => label.text === 'FIRST TO 11' && label.size >= 48));
   assert.ok(hud.some(label => label.text === 'WIN BY 2' && label.size >= 48));
   for (const label of hud) assert.ok(label.left >= 48 && label.right <= 1872 && label.top >= 48,
     `${label.text} stays inside the safe area`);

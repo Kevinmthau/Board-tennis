@@ -79,15 +79,9 @@ export function gameAudio(): GameAudio {
   return a;
 }
 // ---- game font --------------------------------------------------------------------------
-// A game may bundle its own font in public/fonts/ with game-font.json, which names its family,
-// its case and how small it still reads (Board Studio picks one per game); Kabel Ultra
-// (itc-kabel-ultra.otf, Board's title face) is bundled beside it for small text. Load both before the title screen draws:
-//   await loadTitleFont(); then each title frame: drawTitle(ctx, box) from ./title
-// and set every other on-screen text in ctx.font = gameFont(px). A game without
-// game-font.json (one built before game fonts) gets Kabel Ultra alone, as it always did.
-// It never throws: a missing or broken file resolves false and titleFont() falls back to a
-// heavy system face. Every call shares one load.
-export const TITLE_FONT_FAMILY = "Kabel Ultra";
+// One approved open font is bundled and loaded under the title and text aliases.
+// Keep drawTitle() and gameFont() as the single font entry points.
+export const TITLE_FONT_FAMILY = "Board Text Font";
 export const GAME_FONT_CONFIG = "fonts/game-font.json";
 export interface GameFontConfig {
   layout: 2; family: string; uppercase: boolean; capRatio: number;
@@ -118,7 +112,7 @@ export function parseGameFontConfig(raw: unknown): (GameFontConfig & { file: str
 }
 async function readGameFontConfig(url: string) {
   let response: Response;
-  try { response = await fetch(url); } catch { return null; } // no file: a Kabel-only game
+  try { response = await fetch(url); } catch { return null; } // no file: a fallback-only game
   if (!response.ok) return null;
   try {
     const config = parseGameFontConfig(await response.json());
@@ -130,9 +124,9 @@ async function readGameFontConfig(url: string) {
   }
 }
 let titleFontLoad: Promise<boolean> | null = null;
-export function loadTitleFont(url = "fonts/itc-kabel-ultra.otf"): Promise<boolean> {
+export function loadTitleFont(url = "fonts/game-font.woff2"): Promise<boolean> {
   titleFontLoad ??= (async () => {
-    const kabel = (async () => {
+    const textFace = (async () => {
       try {
         document.fonts.add(await new FontFace(TITLE_FONT_FAMILY, `url(${url})`).load());
         return true;
@@ -152,22 +146,22 @@ export function loadTitleFont(url = "fonts/itc-kabel-ultra.otf"): Promise<boolea
         console.warn("[font] game font unavailable", error);
       }
     }
-    return (await kabel) || gameFontConfig !== null;
+    return (await textFace) || gameFontConfig !== null;
   })();
   return titleFontLoad;
 }
-const KABEL_STACK = `"${TITLE_FONT_FAMILY}", "Arial Black", sans-serif`;
-/** The title's CSS font at `px`: the game font (Kabel, then a heavy system face, behind it). */
+const TEXT_STACK = `"${TITLE_FONT_FAMILY}", "Arial Black", sans-serif`;
+/** The title's CSS font at `px`: the game font (the text face, then a heavy system face, behind it). */
 export const titleFont = (px: number) => {
   const family = gameFontConfig ? `"${gameFontConfig.family}", ` : "";
-  return `${Math.round(px)}px ${family}${KABEL_STACK}`;
+  return `${Math.round(px)}px ${family}${TEXT_STACK}`;
 };
-// Board Studio's boot-check readable floor (MIN_TEXT_CAP_PX): the capitals of Kabel Ultra at
+// Board Studio's boot-check readable floor (MIN_TEXT_CAP_PX): the capitals of the text face at
 // 32 px. Text set at 32 px or more never gets shorter capitals than that from the game font.
 const MIN_TEXT_PX = 32;
 const MIN_TEXT_CAP_PX = MIN_TEXT_PX * 0.702;
 /** The CSS font for any other on-screen text at `px`: the game font where it reads at that
- * size, else Kabel Ultra (small text in a script, hairline or tiny-capped face). A pixel face
+ * size, else the text face (small text in a script, hairline or tiny-capped face). A pixel face
  * snaps down to whole pixels per design cell so it stays crisp. */
 export const gameFont = (px: number) => gameFontFor(gameFontConfig, px);
 export function gameFontFor(c: GameFontConfig | null, px: number): string {
@@ -175,7 +169,7 @@ export function gameFontFor(c: GameFontConfig | null, px: number): string {
     const cells = c.pixelCellsPerEm;
     const size = cells ? Math.max(cells, Math.floor(Math.round(px) / cells) * cells) : Math.round(px);
     const floor = Math.max(c.minReadableCapPx, Math.round(px) >= MIN_TEXT_PX ? MIN_TEXT_CAP_PX : 0);
-    if (size * c.capRatio >= floor) return `${size}px "${c.family}", ${KABEL_STACK}`;
+    if (size * c.capRatio >= floor) return `${size}px "${c.family}", ${TEXT_STACK}`;
   }
-  return `${Math.round(px)}px ${KABEL_STACK}`;
+  return `${Math.round(px)}px ${TEXT_STACK}`;
 }

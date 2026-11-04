@@ -5,7 +5,7 @@ import { loadPieceFootprints, pieceFootprint, frontPoint, type PieceFootprints }
 import { noteContacts, pickPlayer, seated, selectorOpen } from './seats';
 import { PieceTracker, type TrackedPiece } from './tracking';
 import { SwingController, type SwingPose } from './swing';
-import { createMatch, nextServe, canStrike, inOwnHalf, type Side } from './tennis';
+import { createMatch, nextServe, canStrike, inOwnHalf, type Side } from './pickleball';
 import { advanceRallyFrame, type RallyControl } from './rally-frame';
 import { readMatchSave, savedSideForPlayer, SAVE_VERSION, type SavedMatch } from './match-save';
 import { ballDisplay } from './ball-display';
@@ -19,6 +19,7 @@ const ctx = createSurface(canvas);
 type Mode = GameView['mode'];
 type Seat = { player: BoardPlayer; side: Side | null; pieceId: number | null };
 let mode: Mode = 'title', helpReturn: Mode = 'title';
+let helpPage = 0;
 let match = createMatch();
 let seats: Seat[] = [];
 let footprints: PieceFootprints | null = null;
@@ -105,7 +106,7 @@ function changeSetup() {
   seats.forEach(s => { s.side = null; s.pieceId = null; });
   enterSetup();
 }
-function openHelp() { if (mode === 'help') return; helpReturn = mode; mode = 'help'; resetSwings(); pops.clear(); }
+function openHelp() { if (mode === 'help') return; helpReturn = mode; mode = 'help'; helpPage = 0; resetSwings(); pops.clear(); }
 function closeHelp() { mode = helpReturn; resetSwings(); }
 
 startInput((batch, active) => {
@@ -141,7 +142,7 @@ function scoreMoment() {
   if (side === null) return;
   const x = side === 0 ? 420 : 1500;
   particles.burst(x, 540, { count: match.phase === 'over' ? 70 : 36, color: side === 0 ? '#ff997c' : '#fff0c6', speed: 280, life: .9, glow: false });
-  if (match.phase !== 'over') {
+  if (match.phase !== 'over' && match.pointScored) {
     const at = pointPopPosition(side, browser);
     pops.pop(at.x, at.y, '+1', { size: 96, font: gameFont(96), color: '#fff0c6', face: browser ? 'bottom' : side === 0 ? 'left' : 'right' });
   }
@@ -173,6 +174,8 @@ function update(now: number, dt: number) {
     else if (tapped('help')) openHelp();
   } else if (mode === 'help') {
     if (tapped('back')) closeHelp();
+    else if (tapped('helpNext')) { if (helpPage === 5) closeHelp(); else helpPage++; }
+    else if (tapped('helpPrev')) helpPage = Math.max(0, helpPage - 1);
   } else if (mode === 'setup') {
     if (tapped('add')) void addPlayer();
     if (tapped('leftPlayer')) { const s = seats.find(s => s.side === 0) ?? seats[0]; void addPlayer(s?.player.sessionId); }
@@ -191,7 +194,11 @@ function update(now: number, dt: number) {
         const p = pieceFor(s);
         if (!p?.present) { swings[s.side].reset(); continue; }
         if (epochs.get(p.id) !== p.epoch) { swings[s.side].reset(); epochs.set(p.id, p.epoch); }
-        controls.push({ side: s.side, pose: poseOf(p), controller: swings[s.side] });
+        // A classification flap retains presence with a frozen pose, not observed rest.
+        controls.push({ side: s.side, pose: p.lastSeen === now ? poseOf(p) : null, controller: swings[s.side],
+          footingAt: pose => ({ ...pose, outline: pieceFootprint(footprints, {
+            ...p, x: pose.x, y: pose.y, orientation: pose.facingDeg - (footprints?.facingOffsetDeg ?? 0),
+          })!.outline }) });
       }
       const bounceBefore = match.bounceSerial;
       const result = advanceRallyFrame(match, dt, now, controls);
@@ -213,12 +220,12 @@ function update(now: number, dt: number) {
 }
 
 function view(now: number): GameView {
-  return { mode, now, match, browser, canContinue: !!saved,
+  return { mode, now, match, browser, canContinue: !!saved, helpPage,
     seats: seats.map(s => ({ name: s.player.name, side: s.side, present: !!pieceFor(s)?.present, glyphId: pieceFor(s)?.glyphId ?? 5 })),
     rackets: rackets(), missing: mode === 'play' && (seats.length !== 2 || seats.some(s => !pieceFor(s) || pieceFor(s)!.lifted)),
     drawEffects: () => { trail.draw(ctx); particles.draw(ctx); splashes.draw(ctx); pops.draw(ctx); } };
 }
-Object.defineProperty(window, 'TwistTennisState', { configurable: true, get: () => JSON.parse(JSON.stringify({
+Object.defineProperty(window, 'TwistPickleballState', { configurable: true, get: () => JSON.parse(JSON.stringify({
   mode, match, seats: seats.map(s => ({ sessionId: s.player.sessionId, name: s.player.name, side: s.side, pieceId: s.pieceId, present: !!pieceFor(s)?.present })),
   placementCount, running,
 })) });
