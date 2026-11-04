@@ -2,7 +2,7 @@
 // from board.config.json's "name" at pack time), so a renamed game shows its new name with no code change.
 // Never type the game's name anywhere: call drawTitle(ctx, box) each frame the title shows,
 // after `await loadTitleFont()` once at boot. It sets the name in the game's font with its
-// soft shadow (layout 2), or for a game without one in Kabel Ultra, stacked in caps (layout 1).
+// soft shadow (layout 2), or with the bundled fallback font, stacked in caps (layout 1).
 // The layout is Board Studio's cover layout (board-cloud-agent-core studio_core/board_app/cover.py);
 // tests/title-layout-cases.json pins both.
 import { loadedGameFont, titleFont } from "./runtime";

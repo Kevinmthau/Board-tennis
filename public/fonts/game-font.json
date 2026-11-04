@@ -1,0 +1,10 @@
+{
+  "layout": 2,
+  "family": "Board Game Font",
+  "file": "game-font.woff2",
+  "uppercase": false,
+  "cap_ratio": 0.7,
+  "small_text_ok": true,
+  "min_readable_cap_px": 12,
+  "pixel_cells_per_em": null
+}

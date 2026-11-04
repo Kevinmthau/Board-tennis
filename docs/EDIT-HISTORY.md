@@ -69,3 +69,10 @@ Preserved the existing missing-piece and text-audit changes. Fixed restore bindi
 Fixed repeated-menu identity loss, loss of confirmed lift state, and duplicate-glyph recovery that discarded a valid identity. Audio created during a menu stays suspended.
 Fixed missed net-crossing volleys and a strike lock that could survive a rapid return. Browser scoring-rule labels now meet the in-play 48 px minimum with expanded spacing.
 Added regression coverage for these cases and reran the actual-font layout audit. No new media, gameplay rule changes, app identity changes, or hardware installation were requested.
+
+## November 4, 2026 — Pickleball conversion
+
+The person requested pickleball rules, both board-game-standards and board-games-ai, a PR, a clean-context review, fixes for P0/P1 findings, and merge/push/cleanup.
+Replaced arcade tennis with traditional singles side-out scoring to 11 (win by two), parity-based diagonal serves, the two-opening-bounce rule, and measured-footprint service/kitchen faults. Volley momentum remains enforceable after a dead ball; net and out calls replace wall banks.
+Renamed the game Twist Pickleball while retaining its installed IDs, two human seats, Sports assets, SDK, and platform ownership. Migrated tennis saves and added pickleball state validation. Added a proportional court, perforated ball, service cues, side-out feedback, six teaching pages, approved bundled font, canonical browser stand-ins, and a separate title card.
+Unit and assembled-input checks cover rules, tracking, pause, complete match, result, rematch, and setup changes. Browser and actual-font checks cover the new flow and layouts. Physical Board and uncoached human checks remain open; review and publication evidence is recorded in the acceptance ledger.

@@ -1,3 +1,89 @@
+# Twist Pickleball
+
+## Current change — November 4, 2026
+
+The person requested pickleball rules, use of board-game-standards and board-games-ai, and a reviewed, merged PR.
+The baseline is `bd968cbd9eecd09d0b8f20301378b24bcea7d241`. The baseline tests pass: 161 passed, three external-catalog skips.
+The builder owns the `codex/pickleball-rules` checkout. The existing public repository and installed app identity stay fixed.
+
+## Summary and how to play
+
+Two human players use the existing Sports pieces and twist controls for singles pickleball.
+1. Place one Sports piece at each end. Slide beside the ball and twist the line through it.
+2. Serve behind the baseline into the diagonal service box. Serve from your right on even scores, left on odd scores.
+3. Let the serve bounce, then let its return bounce. Afterward, volley only while your piece stays outside the kitchen.
+4. Only the server scores. Win 11 points with a two-point lead. A receiving winner earns the serve without a point.
+
+## Rules and tabletop adaptations
+
+- Use traditional singles side-out scoring, one serve attempt, and no sets or doubles service order.
+- Mark a 44-by-20 court proportionally on the 1920-by-1080 canvas, leaving room behind each baseline for pieces.
+- Mark the seven-foot kitchen on both sides. Baselines, sidelines, and service centerlines count as in.
+- A serve touching the kitchen line, landing in the wrong service box, or landing out loses the serve.
+- Both opening shots must bounce before a return. An early swing is a fault, rather than passing through the ball silently.
+- After those bounces, volleys are legal outside the kitchen. Ground strokes are legal inside it.
+- Use each piece's measured footprint as its feet, including kitchen-line and service-foot faults.
+- Track volley follow-through until the piece settles for 0.2 seconds within a 16 px / 8 degree rest window (tracking-jitter tolerance). Kitchen contact during this motion is a fault, even after the ball dies.
+- Delay a rally outcome while volley follow-through is unsettled. Never announce a provisional point or result.
+- An out-of-bounds first landing loses for the hitter. A second landing after a legal first bounce loses for the receiver.
+- Board edges never rebound. Reaching the glass edge before a legal bounce is out; after a legal bounce it is a missed return.
+- A low net crossing is a fault. Automatic vertical flight, receiver slowdown, and the measured planar tangent remain.
+- Twist contact with a stationary ball substitutes for a real underhand/drop serve. Arm and waist height are not observable on Board.
+- A ball's court anchor is its ground-contact location. Its lifted rendering remains the racket-contact target.
+- A backward shot is not corrected. It can fault at the net, ground, table edge, or the existing eight-second dead-shot limit.
+- The serve ball waits for deliberate rotation. Placement, translation, menu return, and reacquisition never strike.
+- Saved tennis scores, seats, and best rallies migrate. Active tennis rallies restart at a pickleball serve; completed results remain historical results.
+- New saves preserve pickleball service, bounce obligations, and unfinished volley follow-through.
+
+## Players, teaching, first minute, and result
+
+Keep two roster-backed human seats at the left and right ends. Use `src/seats.ts` after platform readiness.
+Keep the existing tracking-gap, pause-epoch, explicit reseating, and shared result/rematch behavior.
+Show canonical Sports art when asking for equipment. Do not draw a proxy under a physical piece.
+The title introduces the renamed game. Setup identifies each piece and player. The first serve highlights the service box and diagonal target.
+Help uses separate animated pages for the twist, serve, two-bounce rule, kitchen, boundaries, and scoring.
+Live prompts identify the server, required bounce, kitchen fault, and side out. Only scored points receive a +1 effect.
+The result waits for Rematch or Change setup. Rematch clears all pickleball obligations and retains confirmed seats.
+
+## Standards and decisions
+
+Sources: local `board-game-standards` at `e42cdb4f`, and `board-games-ai` at `4a6ff44e`.
+Read the improvement, Studio starter, design rules, teaching, piece/table, fonts, and simple-English skills.
+Sport source: [USA Pickleball rules summary](https://usapickleball.org/rules/summary/), checked November 4, 2026.
+
+| Decision | By | Reason |
+|---|---|---|
+| Pickleball replaces arcade tennis | person | This request supersedes the old wall and scoring rules |
+| Singles, two humans | builder | Preserve the person's established two-human design |
+| Name: Twist Pickleball | builder | Match the sport while preserving the twist mechanic |
+| Insets replace full-screen wall play | builder | Service areas and out calls need court boundaries |
+| Physical footprint represents feet | builder | Board reports pieces rather than human body pose |
+| Stable piece ends volley momentum | builder | Measurable tabletop equivalent of regaining balance |
+| Keep platform-owned menus, saves, audio, name | project instructions | PLATFORM.md supersedes older standards examples |
+| Keep installed IDs, Sports model, vendored SDK, public repo | project/person instructions | Preserve installation, saves, and repository continuity |
+| Keep two seat-facing views and shared result | project instructions | Simultaneous players must read their own edge |
+| Vibes: sporty, sunny, arcade | builder | Retain the existing blue-court visual world |
+| Russo One 400 | builder | Approved sports font; selected over Passion One and Squada One for wider, readable labels |
+| Original paddle key art and title card | builder | No canonical piece renders or subtitle on the home screen; separate 1536-by-864 composition |
+
+This is a rules conversion in an existing game. Generic mode selection, house-rule customization, AI levels, flip controls,
+and a new release-publishing workflow are outside this change. Existing project-specific flow remains authoritative.
+The standards' request for a private Harris-Hill repository does not override the person's existing public Kevinmthau repository.
+The standards' direct save/quit APIs do not override PLATFORM.md. Text floors remain 48 px in play, 32 px elsewhere,
+with 120 px targets and 48 px edge insets. Conflicting font guidance uses the standards' approved open-font requirement. Russo One is bundled under the OFL, with a renamed internal family and URL metadata removed; the source and modification are recorded in the manifest.
+
+## Verification plan
+
+Test scoring/service parity, both opening bounce obligations, diagonal serves and line calls, kitchen/foot faults and follow-through,
+net/out/missed returns, frame-order collisions, save migration, pause recovery, and an input-driven complete match and rematch.
+Run the whole test suite, TypeScript, browser build, and Board packaging. Inspect the actual browser screens and help pages.
+Review the PR in a fresh agent context. Fix P0/P1 findings and repeat until clear before merging and cleaning the branch.
+Keep Board and uncoached-human checks open until actual hardware and people establish those results.
+
+---
+
+## Historical tennis plan (superseded by the current rules above)
+
 # Twist Tennis
 
 ## Summary

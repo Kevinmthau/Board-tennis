@@ -13,7 +13,7 @@ const html = readFileSync(entry, 'utf8');
 if (!platformTag.test(html)) throw new Error('Cannot find the packed Board platform script.');
 rmSync(destination, {recursive:true, force:true});
 cpSync(dist, destination, {recursive:true});
-const scripts = ['browser-host.js', 'player-selector.js', 'tennis-controls.js'];
+const scripts = ['browser-host.js', 'player-selector.js', 'pickleball-controls.js'];
 for (const name of scripts) copyFileSync(join(root, 'dev', name), join(destination, name));
 const adapters = scripts.map(name => `<script src="./${name}"></script>`).join('\n') + '\n';
 writeFileSync(join(destination, 'index.html'), html.replace(platformTag, tag => adapters + tag));

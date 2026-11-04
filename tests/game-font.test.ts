@@ -8,9 +8,9 @@ import { drawTitle } from "../src/title";
 const CONFIG = {
   layout: 2, family: "Board Game Font", file: "game-font.woff2", uppercase: false, cap_ratio: 0.7,
   small_text_ok: true, min_readable_cap_px: 20, pixel_cells_per_em: null,
-  fallback: { family: "Kabel Ultra", file: "itc-kabel-ultra.otf" },
+  fallback: { family: "Board Text Font", file: "game-font.woff2" },
 };
-const KABEL = '"Kabel Ultra", "Arial Black", sans-serif';
+const FALLBACK = '"Board Text Font", "Arial Black", sans-serif';
 const added: string[] = [];
 (globalThis as any).fetch = async (url: string) => ({
   ok: url === "fonts/game-font.json", json: async () => CONFIG,
@@ -21,30 +21,30 @@ const added: string[] = [];
 };
 (globalThis as any).document = { fonts: { size: 0, add(face: any) { added.push(`${face.family} ${face.source}`); this.size += 1; } } };
 
-test("loadTitleFont loads the game font and Kabel Ultra beside it", async () => {
+test("loadTitleFont loads the game font and Board Text Font beside it", async () => {
   assert.equal(await loadTitleFont(), true);
   assert.deepEqual(added.sort(), [
-    "Board Game Font url(fonts/game-font.woff2)", "Kabel Ultra url(fonts/itc-kabel-ultra.otf)",
+    "Board Game Font url(fonts/game-font.woff2)", "Board Text Font url(fonts/game-font.woff2)",
   ]);
   assert.deepEqual(loadedGameFont(), {
     layout: 2, family: "Board Game Font", uppercase: false, capRatio: 0.7,
     smallTextOk: true, minReadableCapPx: 20, pixelCellsPerEm: null,
   });
-  assert.equal(titleFont(159.6), `160px "Board Game Font", ${KABEL}`);
+  assert.equal(titleFont(159.6), `160px "Board Game Font", ${FALLBACK}`);
 });
 
-test("gameFont uses the game font where its capitals read, Kabel Ultra below that", () => {
-  assert.equal(gameFont(29), `29px "Board Game Font", ${KABEL}`); // caps 20.3 px
-  assert.equal(gameFont(28), `28px ${KABEL}`); // caps 19.6 px: under the font's floor
-  // From 32 px up its capitals are never shorter than Kabel Ultra's at 32 px (Studio's boot-check floor).
-  assert.equal(gameFont(32), `32px ${KABEL}`); // caps 22.4 px
-  assert.equal(gameFont(33), `33px "Board Game Font", ${KABEL}`); // caps 23.1 px
+test("gameFont uses the game font where its capitals read, Board Text Font below that", () => {
+  assert.equal(gameFont(29), `29px "Board Game Font", ${FALLBACK}`); // caps 20.3 px
+  assert.equal(gameFont(28), `28px ${FALLBACK}`); // caps 19.6 px: under the font's floor
+  // From 32 px up its capitals are never shorter than Board Text Font's at 32 px (Studio's boot-check floor).
+  assert.equal(gameFont(32), `32px ${FALLBACK}`); // caps 22.4 px
+  assert.equal(gameFont(33), `33px "Board Game Font", ${FALLBACK}`); // caps 23.1 px
   const face = loadedGameFont()!;
-  assert.equal(gameFontFor({ ...face, smallTextOk: false }, 200), `200px ${KABEL}`); // a script
-  assert.equal(gameFontFor(null, 48), `48px ${KABEL}`); // a game without a game font
+  assert.equal(gameFontFor({ ...face, smallTextOk: false }, 200), `200px ${FALLBACK}`); // a script
+  assert.equal(gameFontFor(null, 48), `48px ${FALLBACK}`); // a game without a game font
   const pixel = { ...face, family: "Pixel", capRatio: 0.625, minReadableCapPx: 15, pixelCellsPerEm: 8 };
-  assert.equal(gameFontFor(pixel, 47), `40px "Pixel", ${KABEL}`); // whole pixels per cell
-  assert.equal(gameFontFor(pixel, 23), `23px ${KABEL}`); // 16 px snapped: caps 10 px
+  assert.equal(gameFontFor(pixel, 47), `40px "Pixel", ${FALLBACK}`); // whole pixels per cell
+  assert.equal(gameFontFor(pixel, 23), `23px ${FALLBACK}`); // 16 px snapped: caps 10 px
 });
 
 test("drawTitle sets the game font as typed with the soft shadow", () => {
@@ -75,6 +75,6 @@ test("game-font.json is read as data: anything malformed is ignored", () => {
     null, "x", { ...CONFIG, layout: 1 }, { ...CONFIG, family: 'a"b' }, { ...CONFIG, file: "../x.woff2" },
     { ...CONFIG, file: "dir/x.woff2" }, { ...CONFIG, cap_ratio: "0.7" }, { ...CONFIG, cap_ratio: 9 },
     { ...CONFIG, uppercase: "no" }, { ...CONFIG, pixel_cells_per_em: 2.5 }, { ...CONFIG, min_readable_cap_px: -1 },
-    { ...CONFIG, family: "A\nB" }, { ...CONFIG, family: "kabel ultra" }, { ...CONFIG, pixel_cells_per_em: 1e9 },
+    { ...CONFIG, family: "A\nB" }, { ...CONFIG, family: "board text font" }, { ...CONFIG, pixel_cells_per_em: 1e9 },
   ]) assert.equal(parseGameFontConfig(bad), null, JSON.stringify(bad));
 });

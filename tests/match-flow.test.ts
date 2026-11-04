@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {Board,BoardContactPhase,BoardContactType,BoardPlayerType,type BoardContact} from '@board.fun/web-sdk';
-import {createMatch,type Match,type Side} from '../src/tennis';
+import {createMatch,serveBall,serveFromBottom,type Match,type Side} from '../src/pickleball';
 import {ballDisplay} from '../src/ball-display';
 
 // An assembled-game walk. Only normal SDK contact batches, clock ticks and menu callbacks
@@ -41,7 +41,7 @@ const audioNode=()=>({connect(){},disconnect(){},start(){},stop(){},gain:param()
 Object.defineProperty(performance,'now',{configurable:true,value:()=>now});
 g.requestAnimationFrame=(callback:(ms:number)=>void)=>{const id=nextFrame++;frames.set(id,callback);return id;};
 g.cancelAnimationFrame=(id:number)=>{frames.delete(id);};
-g.document={title:'Twist Tennis',hidden:false,fonts:{add(){},size:0,ready:Promise.resolve()},
+g.document={title:'Twist Pickleball',hidden:false,fonts:{add(){},size:0,ready:Promise.resolve()},
   querySelector:()=>fakeCanvas(),createElement:()=>fakeCanvas(),addEventListener:listen,removeEventListener(){}};
 g.FontFace=class{load(){return Promise.resolve(this);}};
 g.AudioContext=class{
@@ -81,7 +81,7 @@ Object.assign(Board.session,{areServicesReady:()=>true,isReady:()=>true,getPlaye
   }});
 const errors:unknown[]=[];
 process.on('unhandledRejection',e=>errors.push(e));
-const snapshot=():Snapshot=>win.TwistTennisState;
+const snapshot=():Snapshot=>win.TwistPickleballState;
 function tick(count=1){
   for(let i=0;i<count;i++){
     now+=1000/60;const pending=[...frames.values()];frames.clear();texts.length=0;
@@ -95,8 +95,8 @@ function until(predicate:(s:Snapshot)=>boolean,message:string,maxFrames=1800){
 }
 let nextContact=100;
 const poses:[Pose,Pose]=[
-  {id:nextContact++,glyph:5,x:500,y:710,orientation:270},
-  {id:nextContact++,glyph:5,x:1420,y:370,orientation:90},
+  {id:nextContact++,glyph:5,x:270,y:720,orientation:260},
+  {id:nextContact++,glyph:5,x:1650,y:360,orientation:80},
 ];
 function contact(p:Pose,phase=BoardContactPhase.Moved):BoardContact{
   return {contactId:p.id,glyphId:p.glyph,x:p.x,y:p.y,orientation:p.orientation,phase,type:BoardContactType.Glyph,isTouched:true}as BoardContact;
@@ -165,7 +165,7 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
   const placementCount=snapshot().placementCount;
   tick(30);assert.equal(snapshot().match.phase,'serve','stationary overlapping racket cannot serve itself');
 
-  move(0,{orientation:272});tick();
+  move(0,{orientation:262});tick();
   assert.equal(snapshot().match.phase,'rally');assert.equal(snapshot().match.lastHitter,0);
   assert.ok(snapshot().match.ball.vx>0);assert.equal(snapshot().match.rally,1);
 
@@ -198,48 +198,58 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
   batch!(poses.map(p=>contact(p,BoardContactPhase.Began)));tick(2);
   assert.equal(frames.size,1);
 
-  until(s=>s.match.crossedNet&&s.match.ball.x>=1380,'serve reaches the right receiver');
+  // The opening serve and its return must each bounce before a legal hit.
+  until(s=>s.match.groundBounces===1,'serve bounces in the diagonal right service box');
   let b=ballDisplay(snapshot().match.ball);
   move(1,{x:b.x+5,y:b.y-170,orientation:90});tick();
-  assert.equal(snapshot().match.rally,1,'sliding the receiving line over the moving ball is not a hit');
+  assert.equal(snapshot().match.rally,1,'translation alone never returns');
   move(1,{orientation:92});tick();
-  assert.equal(snapshot().match.lastHitter,1);assert.equal(snapshot().match.rally,2);assert.ok(snapshot().match.ball.vx<0);
-  move(0,{orientation:270});tick(); // prepare the next swing while the ball is still far away
-
-  until(s=>s.match.crossedNet&&s.match.ball.x<=580,'return reaches the left receiver');
+  assert.equal(snapshot().match.lastHitter,1);assert.equal(snapshot().match.rally,2);
+  until(s=>s.match.groundBounces===1,'return of serve bounces on the left');
   b=ballDisplay(snapshot().match.ball);move(0,{x:b.x-5,y:b.y+170,orientation:270});tick();
-  assert.equal(snapshot().match.rally,2);move(0,{orientation:272});tick();
-  assert.equal(snapshot().match.lastHitter,0);assert.equal(snapshot().match.rally,3);assert.ok(snapshot().match.ball.vx>0);
-  until(s=>s.match.groundBounces===1,'the missed return lands once and rebounds');
-  assert.equal(snapshot().match.phase,'rally');assert.equal(snapshot().match.receiver,1);
-  assert.deepEqual(snapshot().match.score,[0,0],'first ground bounce gives a recovery chance');
-  assert.ok(snapshot().match.ball.vz>0,'first ground bounce launches a new visible arc');
-  until(s=>s.match.phase==='point','a second ground bounce without a return awards a point');
-  assert.deepEqual(snapshot().match.score,[1,0]);assert.equal(snapshot().match.groundBounces,2);
-  assert.equal(snapshot().match.server,1);assert.equal(snapshot().match.bestRally,3);
-  until(s=>s.match.phase==='serve','point announcement ends at the conceding player serve');
-  assert.equal(snapshot().match.ball.x,1420);assert.equal(snapshot().match.ball.y,540);
-  tick(120);assert.equal(snapshot().match.phase,'serve','next point waits for an intentional serve');
+  move(0,{orientation:272});tick();
+  assert.equal(snapshot().match.lastHitter,0);assert.equal(snapshot().match.rally,3);
+  until(s=>s.match.phase==='point','missed return awards the serving player');
+  assert.deepEqual(snapshot().match.score,[1,0]);assert.equal(snapshot().match.server,0);
+  assert.equal(snapshot().match.pointScored,true);assert.equal(snapshot().match.bestRally,3);
+  until(s=>s.match.phase==='serve','the same server prepares from the odd-score court');
+  assert.deepEqual(snapshot().match.ball,serveBall(0,1));
+  tick(120);assert.equal(snapshot().match.phase,'serve','the next ball waits for a deliberate serve');
 
-  // Earn the remaining points through normal serves and returns. The right player serves,
-  // the left player returns, and the right player lets the ball land twice.
-  for(let expected=2;expected<=7;expected++){
-    assert.equal(snapshot().match.phase,'serve');
-    move(1,{x:1420,y:240});tick(); // translate clear without twisting an overlapping line
-    move(1,{orientation:90});tick(2); // prepare the angle away from the serve ball
-    move(1,{y:370});tick(); // slide into contact without rotation
-    assert.equal(snapshot().match.phase,'serve','placement by translation cannot strike');
-    move(1,{orientation:92});tick();
-    assert.equal(snapshot().match.phase,'rally');assert.equal(snapshot().match.lastHitter,1);assert.ok(snapshot().match.ball.vx<0);
-    move(0,{orientation:270});tick(); // prepare at the opposite end while the serve is far away
-    until(s=>s.match.crossedNet&&s.match.ball.x<=580,`serve ${expected} reaches the left receiver`);
-    b=ballDisplay(snapshot().match.ball);move(0,{x:b.x-5,y:b.y+170,orientation:270});tick();
-    move(0,{orientation:272});tick();
-    assert.equal(snapshot().match.lastHitter,0);assert.equal(snapshot().match.rally,2);
-    assert.equal(snapshot().match.groundBounces,0,'a fresh return resets the ground-bounce count');
-    until(s=>s.match.phase==='point'||s.match.phase==='over',`the missed return awards point ${expected}`);
-    assert.deepEqual(snapshot().match.score,[expected,0]);
-    if(expected<7)until(s=>s.match.phase==='serve','following serve becomes ready');
+  function serveCurrent() {
+    const m=snapshot().match,side=m.server,bottom=serveFromBottom(side,m.score[side]);
+    const x=side===0?270:1650,y=bottom?720:360;
+    const angle=side===0?(bottom?260:100):(bottom?280:80);
+    const direction=(side===0)===bottom?1:-1;
+    move(side,{x:side===0?650:1270,y:540});tick(); // move clear before changing facing
+    move(side,{orientation:angle});tick(2);
+    move(side,{x,y});tick();
+    assert.equal(snapshot().match.phase,'serve','translation cannot start a serve');
+    move(side,{orientation:angle+direction*2});tick();
+    assert.equal(snapshot().match.phase,'rally');assert.equal(snapshot().match.lastHitter,side);
+  }
+
+  // A receiving rally win only transfers service. First the left player serves out;
+  // then the right player does the same, restoring service without inventing points.
+  for(const side of [0,1] as const){
+    const m=snapshot().match;assert.equal(m.server,side);
+    const bottom=serveFromBottom(side,m.score[side]),y=bottom?720:360;
+    const angle=side===0?(bottom?260:100):(bottom?280:80);
+    const direction=(side===0)===bottom?-1:1; // a backwards tangent
+    move(side,{x:side===0?650:1270,y:540});tick();move(side,{orientation:angle});tick(2);
+    move(side,{x:side===0?270:1650,y});tick();move(side,{orientation:angle+direction*2});tick();
+    until(s=>s.match.phase==='point','a backwards serve goes out');
+    assert.equal(snapshot().match.pointScored,false);assert.deepEqual(snapshot().match.score,[1,0]);
+    assert.ok(texts.some(t=>t.includes('SIDE OUT')),'side out is communicated instead of +1');
+    until(s=>s.match.phase==='serve','side out readies the new server');
+    assert.equal(snapshot().match.server,1-side);
+  }
+  // Win the remaining ten points with actual legal alternating-court serves and missed returns.
+  for(let expected=2;expected<=11;expected++){
+    serveCurrent();
+    until(s=>s.match.phase==='point'||s.match.phase==='over',`missed serve awards point ${expected}`);
+    assert.deepEqual(snapshot().match.score,[expected,0]);assert.equal(snapshot().match.pointScored,true);
+    if(expected<11)until(s=>s.match.phase==='serve','the scoring server keeps the serve');
   }
   assert.equal(snapshot().mode,'over');assert.equal(snapshot().match.winner,0);assert.equal(snapshot().match.bestRally,3);
   const result=snapshot();tick(600);
@@ -290,12 +300,12 @@ test('assembled game plays a real two-human match, survives repeated menu epochs
 
   // A real lift of the first piece confirms only that side; the other must still lift and replace.
   batch!([contact(poses[0],BoardContactPhase.Ended)]);tick(14);
-  poses[0]={...poses[0],id:nextContact++,x:500,y:710,orientation:270};
+  poses[0]={...poses[0],id:nextContact++,x:270,y:720,orientation:260};
   batch!([contact(poses[0],BoardContactPhase.Began)]);tick(3);
   assert.equal(snapshot().mode,'setup','one confirmation does not start a two-person match');
   assert.equal(snapshot().seats[0].side,0);assert.equal(snapshot().seats[1].side,null);
   batch!([contact(poses[1],BoardContactPhase.Ended)]);tick(14);
-  poses[1]={...poses[1],id:nextContact++,x:1420,y:370,orientation:90};
+  poses[1]={...poses[1],id:nextContact++,x:1650,y:360,orientation:80};
   batch!([contact(poses[1],BoardContactPhase.Began)]);tick(3);
   assert.equal(snapshot().mode,'play');assert.equal(snapshot().match.phase,'serve');
   assert.deepEqual(snapshot().match.score,[0,0]);assert.equal(snapshot().match.rally,0);

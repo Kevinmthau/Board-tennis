@@ -1,4 +1,4 @@
-# Build checklist: Twist Tennis
+# Build checklist: Twist Pickleball
 
 - [x] Design accepted: two humans, arcade scoring, forgiving slowdown.
 - [x] Exact Studio starter, pinned SDK, Sports model and new app identity.
@@ -70,3 +70,18 @@
 - [x] Final combined tests: 161 pass, 3 existing catalog skips; TypeScript, web build, and Board package pass.
 - [x] Reviewed changes committed as `7683b73` and pushed to public `Kevinmthau/Board-tennis` on `main`.
 - [ ] Updated pause/tracking/volley behavior verified with physical pieces on Board.
+
+
+## Pickleball conversion — November 4, 2026
+
+- [x] Read both requested Board standards sources, record design and conflicts, and verify baseline tests.
+- [x] Singles side-out scoring, service parity, diagonal serves, and line calls implemented and tested.
+- [x] Two-bounce rule, kitchen footprint/follow-through, net and boundary faults implemented and tested.
+- [x] Saved tennis matches migrate and new pickleball state round-trips.
+- [x] Court, ball, title, help, server cues, side-out feedback, and browser controls match pickleball.
+- [x] Complete input-driven match, result, rematch, pause, tracking, and setup tests pass.
+- [x] TypeScript, complete tests, web build, and Board package pass.
+- [x] Actual-font browser screens, help pages, serve, bounce, and side out checked.
+- [ ] PR reviewed in a clean context, P0/P1 findings cleared, merged and branches cleaned up.
+- [ ] Pickleball build tested on Board with physical Sports pieces.
+- [ ] Uncoached two-person pickleball match and native save/restore tested.

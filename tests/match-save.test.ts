@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createMatch, strike, stepMatch } from '../src/tennis';
+import { createMatch, strike, stepMatch } from '../src/pickleball';
 import { readMatchSave, savedSideForPlayer, SAVE_VERSION } from '../src/match-save';
 
 const sides = [{ sessionId: 11, side: 0 }, { sessionId: 22, side: 1 }];
@@ -10,7 +10,7 @@ test('an old active match keeps its score and players but starts a valid new ser
     backWallBounces: 1, ball: { x: 1700, y: 400, vx: -700, vy: 50 } };
   const restored = readMatchSave({ version: 1, match: old, sides });
   assert.ok(restored);
-  assert.equal(restored.match.phase, 'serve'); assert.equal(restored.match.server, 1);
+  assert.equal(restored.match.phase, 'serve'); assert.equal(restored.match.server, 0);
   assert.deepEqual(restored.match.score, [3, 2]); assert.equal(restored.match.bestRally, 8);
   assert.deepEqual(restored.sides, sides); assert.equal(restored.match.ball.z, 0);
   assert.equal(restored.match.groundBounces, 0); assert.equal(restored.match.ball.vx, 0);
@@ -65,5 +65,32 @@ test('legacy saves retain their session-ID fallback without requiring player IDs
 test('malformed stable identities are rejected rather than falling back to a reused session ID', () => {
   for (const playerId of ['', null, 42, {}]) {
     assert.equal(readMatchSave({ version: SAVE_VERSION, match: createMatch(), sides: [{ sessionId: 11, side: 0, playerId }] }), null);
+  }
+});
+
+test('version 2 tennis rallies restart with pickleball service and preserve identities and scores', () => {
+  const match=createMatch(1);match.phase='rally';match.score=[7,6];match.receiver=0;match.lastHitter=1;
+  const old=JSON.parse(JSON.stringify(match));delete old.volleyGuards;delete old.pendingOutcome;delete old.pointScored;
+  const restored=readMatchSave({version:2,match:old,sides});assert.ok(restored);
+  assert.deepEqual(restored.match.score,[7,6]);assert.equal(restored.match.server,1);
+  assert.equal(restored.match.phase,'serve');assert.equal(restored.match.rally,0);
+  assert.deepEqual(restored.match.volleyGuards,[null,null]);assert.deepEqual(restored.sides,sides);
+});
+
+test('pickleball saves preserve a pending volley outcome without awarding it twice', () => {
+  const match=createMatch();match.phase='point';match.rally=4;match.receiver=1;match.lastHitter=0;
+  match.volleyGuards=[{x:700,y:500,facingDeg:270,anchorX:700,anchorY:500,anchorFacing:270,stillFor:.1},null];
+  match.pendingOutcome={winner:0,reason:'double-bounce'};
+  const restored=readMatchSave({version:SAVE_VERSION,match,sides});assert.ok(restored);
+  assert.deepEqual(restored.match,match);assert.equal(restored.match.pointWinner,null);assert.deepEqual(restored.match.score,[0,0]);
+  restored.match.volleyGuards[0]!.x=650;assert.equal(match.volleyGuards[0]!.x,700);
+});
+
+test('malformed pickleball obligations and impossible pending outcomes are rejected', () => {
+  const match=createMatch();
+  for(const patch of [{volleyGuards:[]},{volleyGuards:[{},null]}, {pointScored:undefined},
+    {reason:'tennis-fault'},{pendingOutcome:{winner:0,reason:'out'}},
+    {phase:'rally',lastHitter:null,rally:0},{phase:'over',winner:null}]) {
+    assert.equal(readMatchSave({version:SAVE_VERSION,match:{...match,...patch},sides}),null);
   }
 });

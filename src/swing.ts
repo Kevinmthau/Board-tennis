@@ -1,4 +1,4 @@
-/** The putt-putt forehead line adapted to a live tennis ball.
+/** The putt-putt forehead line adapted to a live ball.
  * Placement and sliding never hit. Both the racket and moving ball are swept for contact. */
 export interface Point { x: number; y: number; radius?: number }
 export interface TimedPoint extends Point { timeMs: number }
@@ -6,6 +6,7 @@ export interface SwingPose extends Point { facingDeg: number; frontReach: number
 export interface SwingHit {
   vx: number; vy: number; speed: number; angularSpeed: number; contactAngleDeg: number;
   contactPosition: Point; contactTimeMs: number;
+  contactPose: SwingPose;
 }
 export interface SweepContact { angle: number; fraction: number; position: Point }
 export type SwingStatus = 'missing' | 'ready' | 'spent';
@@ -200,6 +201,9 @@ export class SwingController {
     this.spent = true; this.status = 'spent';
     return { vx: -Math.sin(rad) * direction * speed, vy: Math.cos(rad) * direction * speed,
       speed, angularSpeed: this.angularSpeed, contactAngleDeg: contact.angle,
-      contactPosition: contact.position, contactTimeMs: previousTime + dt * contact.fraction };
+      contactPosition: contact.position, contactTimeMs: previousTime + dt * contact.fraction,
+      contactPose: { x: previous.x + (pose.x - previous.x) * contact.fraction,
+        y: previous.y + (pose.y - previous.y) * contact.fraction, facingDeg: contact.angle,
+        frontReach: previous.frontReach + (pose.frontReach - previous.frontReach) * contact.fraction } };
   }
 }

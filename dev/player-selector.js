@@ -16,7 +16,7 @@
     Object.assign(root.style, {position:'fixed', inset:'0', background:'rgba(16,43,35,.72)', display:'grid', placeItems:'center', zIndex:'2147483647', pointerEvents:'auto', fontFamily:'system-ui,sans-serif', color:'#163e32'});
     const card = document.createElement('section');
     Object.assign(card.style, {background:'#fff9e9', borderRadius:'28px', padding:'32px', width:'min(420px,80vw)', boxShadow:'0 18px 60px #1235'});
-    const title = document.createElement('h2'); title.textContent = replaceId === undefined ? 'Add a tennis player' : 'Change tennis player'; title.style.margin = '0 0 12px';
+    const title = document.createElement('h2'); title.textContent = replaceId === undefined ? 'Add a pickleball player' : 'Change pickleball player'; title.style.margin = '0 0 12px';
     const help = document.createElement('p'); help.textContent = 'Play together on this screen. Each player uses one Sports piece.'; help.style.fontSize = '18px';
     card.append(title, help);
     const finish = name => {

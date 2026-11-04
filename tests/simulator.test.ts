@@ -36,7 +36,7 @@ function browser() {
   };
   const context=createContext({window,document,performance:window.performance,requestAnimationFrame:window.requestAnimationFrame,
     TextEncoder,MessageEvent,setTimeout,Date,console,fetch:async()=>({ok:false})});
-  for(const file of ['browser-host.js','player-selector.js','tennis-controls.js'])runInContext(readFileSync(`dev/${file}`,'utf8'),context);
+  for(const file of ['browser-host.js','player-selector.js','pickleball-controls.js'])runInContext(readFileSync(`dev/${file}`,'utf8'),context);
   const dispatch=(type:string,props:any={})=>{
     const event={type,key:'',target:canvas,preventDefault(){},stopPropagation(){},...props};
     for(const cb of listeners.get(type)??[])cb(event);
@@ -48,14 +48,14 @@ function browser() {
     const e=elements.find(e=>e.tagName==='BUTTON'&&e.textContent===text&&attached(e));assert.ok(e,`button ${text} exists`);e.onclick();
   };
   const eventFor=(target:any,pointerId:number,x:number,y:number)=>({pointerId,clientX:20+x/2,clientY:30+y/2,currentTarget:target,target,preventDefault(){},stopPropagation(){}});
-  return {window,sim:window.BoardSDK.__sim,api:window.TwistTennisSim,dispatch,tick,elements,canvas,click,eventFor,get playerChanges(){return playerChanges;}};
+  return {window,sim:window.BoardSDK.__sim,api:window.TwistPickleballSim,dispatch,tick,elements,canvas,click,eventFor,get playerChanges(){return playerChanges;}};
 }
 
 test('each side explicitly places one Sports piece; duplicate glyphs remain separate',()=>{
   const b=browser(),left=b.api.placeForSide(0,5),right=b.api.placeForSide(1,5);b.tick();
   assert.notEqual(left,right);assert.equal(b.api.pieces().length,2);
-  assert.equal(b.api.pieces()[0].x,500);assert.equal(b.api.pieces()[0].y,710);assert.equal(b.api.pieces()[0].orientation,270);
-  assert.equal(b.api.pieces()[1].x,1420);assert.equal(b.api.pieces()[1].orientation,90);
+  assert.equal(b.api.pieces()[0].x,270);assert.equal(b.api.pieces()[0].y,720);assert.equal(b.api.pieces()[0].orientation,260);
+  assert.equal(b.api.pieces()[1].x,1650);assert.equal(b.api.pieces()[1].orientation,80);
   assert.equal(b.api.placeForSide(0,3),left,'placing an occupied side does not silently replace its piece');
   assert.equal(b.api.lift(left),true);assert.equal(b.api.pieces().length,1);assert.equal(b.api.pieces()[0].id,right);
   assert.equal(b.api.placeForSide(0,3)!==null,true);
@@ -66,9 +66,9 @@ test('both players move and rotate simultaneously with independent power keys',(
   for(const code of ['KeyA','KeyW','KeyE','ArrowRight','ArrowDown','Period','ShiftRight'])b.dispatch('keydown',{code});
   b.tick(15);
   const l=b.api.pieces().find((p:any)=>p.id===left),r=b.api.pieces().find((p:any)=>p.id===right);
-  assert.ok(l.x<500&&l.y<710);assert.ok(r.x>1420&&r.y>370);
-  assert.ok(Math.abs(l.orientation-315)<1e-8);assert.ok(Math.abs(r.orientation-210)<1e-8);
-  assert.ok(Math.abs(Math.hypot(l.x-500,l.y-710)-100)<1e-8,'diagonal movement is normalized');
+  assert.ok(l.x<270&&l.y<720);assert.ok(r.x>1650&&r.y>360);
+  assert.ok(Math.abs(l.orientation-305)<1e-8);assert.ok(Math.abs(r.orientation-200)<1e-8);
+  assert.ok(Math.abs(Math.hypot(l.x-270,l.y-720)-100)<1e-8,'diagonal movement is normalized');
   for(const code of ['KeyA','KeyW','KeyE','ArrowRight','ArrowDown','Period','ShiftRight'])b.dispatch('keyup',{code});
   b.tick(5);assert.equal(b.api.pieces().find((p:any)=>p.id===left).orientation,l.orientation);
 });
@@ -83,14 +83,14 @@ test('keyboard and pointer movement stay in the assigned half',()=>{
 test('two touch pointers can twist both pieces independently with no jump when grabbed',()=>{
   const b=browser(),left=b.api.placeForSide(0),right=b.api.placeForSide(1);b.tick();
   const handles=b.elements.filter(e=>(e.attrs['aria-label']??'').includes('rotation handle'));
-  const first=b.eventFor(handles[0],1,360,710),second=b.eventFor(handles[1],2,1280,370);
+  const first=b.eventFor(handles[0],1,130,720),second=b.eventFor(handles[1],2,1510,360);
   handles[0].handlers.get('pointerdown')[0](first);handles[1].handlers.get('pointerdown')[0](second);
-  assert.equal(b.api.pieces().find((p:any)=>p.id===left).orientation,270);
-  assert.equal(b.api.pieces().find((p:any)=>p.id===right).orientation,90);
-  b.dispatch('pointermove',b.eventFor(handles[0],1,500,570));
-  b.dispatch('pointermove',b.eventFor(handles[1],2,1420,510));
-  assert.equal(b.api.pieces().find((p:any)=>p.id===left).orientation,0);
-  assert.equal(b.api.pieces().find((p:any)=>p.id===right).orientation,0);
+  assert.equal(b.api.pieces().find((p:any)=>p.id===left).orientation,260);
+  assert.equal(b.api.pieces().find((p:any)=>p.id===right).orientation,80);
+  b.dispatch('pointermove',b.eventFor(handles[0],1,270,580));
+  b.dispatch('pointermove',b.eventFor(handles[1],2,1650,500));
+  assert.equal(b.api.pieces().find((p:any)=>p.id===left).orientation,350);
+  assert.equal(b.api.pieces().find((p:any)=>p.id===right).orientation,350);
   b.dispatch('pointerup',first);assert.equal(b.api.isDragging,true);
   b.dispatch('pointercancel',second);assert.equal(b.api.isDragging,false);
 });
@@ -98,7 +98,7 @@ test('two touch pointers can twist both pieces independently with no jump when g
 test('native-like mouse coordinates scale to the canvas and controls do not inject fingers',()=>{
   const b=browser();b.dispatch('pointerdown',{pointerId:1,clientX:270,clientY:385,shiftKey:true});b.tick();
   assert.equal(b.sim.contacts()[0].x,500);assert.equal(b.sim.contacts()[0].y,710);
-  const control=b.elements.find(e=>e.dataset.boardSim==='tennis');
+  const control=b.elements.find(e=>e.dataset.boardSim==='pickleball');
   b.dispatch('pointerdown',{pointerId:2,clientX:200,clientY:100,target:control});
   assert.equal(b.sim.contacts().length,1);assert.equal(b.api.sides[0],b.sim.contacts()[0].id);
 });
@@ -111,16 +111,16 @@ test('pause freezes both pieces and recovers same-glyph sides under new contact 
   b.dispatch('keydown',{key:'p',code:'KeyP'});b.tick(10);
   const after=b.api.pieces(),ids=b.api.sides;
   assert.notEqual(ids[0],left);assert.notEqual(ids[1],right);
-  assert.equal(after.find((p:any)=>p.id===ids[0]).x,500);assert.equal(after.find((p:any)=>p.id===ids[1]).x,1420);
+  assert.equal(after.find((p:any)=>p.id===ids[0]).x,270);assert.equal(after.find((p:any)=>p.id===ids[1]).x,1650);
   b.tick(30);
-  assert.equal(b.api.pieces().find((p:any)=>p.x===500).orientation,before.find((p:any)=>p.x===500).orientation);
-  assert.equal(b.api.pieces().find((p:any)=>p.x===1420).orientation,before.find((p:any)=>p.x===1420).orientation);
+  assert.equal(b.api.pieces().find((p:any)=>p.x===270).orientation,before.find((p:any)=>p.x===270).orientation);
+  assert.equal(b.api.pieces().find((p:any)=>p.x===1650).orientation,before.find((p:any)=>p.x===1650).orientation);
 });
 
 test('blur clears held keyboard motion and all active touch drags',()=>{
   const b=browser();b.api.placeForSide(0);b.tick();b.dispatch('keydown',{code:'KeyE'});b.tick(2);
   const handle=b.elements.find(e=>(e.attrs['aria-label']??'').includes('rotation handle'));
-  handle.handlers.get('pointerdown')[0](b.eventFor(handle,1,360,710));
+  handle.handlers.get('pointerdown')[0](b.eventFor(handle,1,130,720));
   b.dispatch('blur');assert.equal(b.api.isDragging,false);
   const angle=b.api.pieces()[0].orientation;b.tick(30);assert.equal(b.api.pieces()[0].orientation,angle);
 });
@@ -144,7 +144,7 @@ test('browser canvas preserves its aspect ratio and leaves space below for contr
 
 test('web build inserts adapters only into the standalone web output',()=>{
   const source=readFileSync('scripts/build-web.mjs','utf8');
-  assert.match(source,/web-dist/);assert.match(source,/tennis-controls\.js/);
+  assert.match(source,/web-dist/);assert.match(source,/pickleball-controls\.js/);
   const vite=readFileSync('vite.config.ts','utf8');assert.match(vite,/apply: "serve"/);
-  const pack=readFileSync('scripts/pack.mjs','utf8');assert.doesNotMatch(pack,/tennis-controls\.js/);
+  const pack=readFileSync('scripts/pack.mjs','utf8');assert.doesNotMatch(pack,/pickleball-controls\.js/);
 });

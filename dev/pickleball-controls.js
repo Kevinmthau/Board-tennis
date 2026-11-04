@@ -4,7 +4,7 @@
   if (!host?.__simulated || !host.__sim?.contacts) return;
   const sim = host.__sim, svgNS = 'http://www.w3.org/2000/svg';
   const names = ['Baseball', 'Hockey', 'Cyclist', 'Soccer', 'Tennis', 'Football', 'Swimmer', 'Basketball'];
-  const homes = [{ x:500,y:710,orientation:270 }, { x:1420,y:370,orientation:90 }];
+  const homes = [{ x:270,y:720,orientation:260 }, { x:1650,y:360,orientation:80 }];
   const bindings = [
     { up:'KeyW',down:'KeyS',left:'KeyA',right:'KeyD',ccw:'KeyQ',cw:'KeyE',power:'ShiftLeft' },
     { up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight',ccw:'Comma',cw:'Period',power:'ShiftRight' },
@@ -28,22 +28,22 @@
   const button = (label,action) => {
     const el = document.createElement('button');el.textContent=label;el.onclick=action;el.type='button';return el;
   };
-  const root = document.createElement('div');root.dataset.boardSim='tennis';
+  const root = document.createElement('div');root.dataset.boardSim='pickleball';
   const style = document.createElement('style');
   style.textContent = `
-    [data-board-sim="tennis"]{position:fixed;inset:0;pointer-events:none;z-index:2147483645;color:#f5efdb;font:14px system-ui,sans-serif}
-    [data-board-sim="tennis"] .tt-panel{position:absolute;bottom:0;left:0;right:0;box-sizing:border-box;padding:9px 18px 12px;background:#082d31;border-top:1px solid #ffffff24;pointer-events:auto}
-    [data-board-sim="tennis"] summary{cursor:pointer;font-weight:750;min-height:24px;line-height:24px;max-width:1080px;margin:auto}
-    [data-board-sim="tennis"] .tt-content{max-width:1080px;margin:8px auto 0;display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:center}
-    [data-board-sim="tennis"] .tt-side{border-left:3px solid #f18c72;padding-left:12px}
-    [data-board-sim="tennis"] .tt-side.right{border-color:#e8dfb6}
-    [data-board-sim="tennis"] .tt-instructions{font-size:13px;line-height:1.5;margin:4px 0 7px;color:#d4dfd3}
-    [data-board-sim="tennis"] .tt-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-    [data-board-sim="tennis"] button,[data-board-sim="tennis"] select{font:inherit;color:#103f42;background:#f5efdb;border:0;border-radius:6px;padding:7px 10px;cursor:pointer;min-height:34px}
-    [data-board-sim="tennis"] button:focus-visible,[data-board-sim="tennis"] select:focus-visible{outline:3px solid #d9ee6d;outline-offset:3px}
-    [data-board-sim="tennis"] .tt-global{font-size:12px;line-height:1.6;color:#bdcfc7}
-    [data-board-sim="tennis"] .tt-status{margin:5px 0 0;font-size:12px;min-height:18px}
-    @media(max-width:760px){[data-board-sim="tennis"] .tt-panel{padding:6px 10px 8px}[data-board-sim="tennis"] .tt-content{grid-template-columns:1fr 1fr;gap:8px}[data-board-sim="tennis"] .tt-global{grid-column:1/-1}[data-board-sim="tennis"] .tt-instructions{font-size:12px}[data-board-sim="tennis"] button,[data-board-sim="tennis"] select{padding:6px}}
+    [data-board-sim="pickleball"]{position:fixed;inset:0;pointer-events:none;z-index:2147483645;color:#f5efdb;font:14px system-ui,sans-serif}
+    [data-board-sim="pickleball"] .tt-panel{position:absolute;bottom:0;left:0;right:0;box-sizing:border-box;padding:9px 18px 12px;background:#082d31;border-top:1px solid #ffffff24;pointer-events:auto}
+    [data-board-sim="pickleball"] summary{cursor:pointer;font-weight:750;min-height:24px;line-height:24px;max-width:1080px;margin:auto}
+    [data-board-sim="pickleball"] .tt-content{max-width:1080px;margin:8px auto 0;display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:center}
+    [data-board-sim="pickleball"] .tt-side{border-left:3px solid #f18c72;padding-left:12px}
+    [data-board-sim="pickleball"] .tt-side.right{border-color:#e8dfb6}
+    [data-board-sim="pickleball"] .tt-instructions{font-size:13px;line-height:1.5;margin:4px 0 7px;color:#d4dfd3}
+    [data-board-sim="pickleball"] .tt-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+    [data-board-sim="pickleball"] button,[data-board-sim="pickleball"] select{font:inherit;color:#103f42;background:#f5efdb;border:0;border-radius:6px;padding:7px 10px;cursor:pointer;min-height:34px}
+    [data-board-sim="pickleball"] button:focus-visible,[data-board-sim="pickleball"] select:focus-visible{outline:3px solid #d9ee6d;outline-offset:3px}
+    [data-board-sim="pickleball"] .tt-global{font-size:12px;line-height:1.6;color:#bdcfc7}
+    [data-board-sim="pickleball"] .tt-status{margin:5px 0 0;font-size:12px;min-height:18px}
+    @media(max-width:760px){[data-board-sim="pickleball"] .tt-panel{padding:6px 10px 8px}[data-board-sim="pickleball"] .tt-content{grid-template-columns:1fr 1fr;gap:8px}[data-board-sim="pickleball"] .tt-global{grid-column:1/-1}[data-board-sim="pickleball"] .tt-instructions{font-size:12px}[data-board-sim="pickleball"] button,[data-board-sim="pickleball"] select{padding:6px}}
   `;
   const surface = node('svg',{viewBox:'0 0 1920 1080',preserveAspectRatio:'none','aria-label':'Two virtual Sports pieces'});
   Object.assign(surface.style,{position:'fixed',overflow:'visible',touchAction:'none',pointerEvents:'none'});
@@ -124,7 +124,7 @@
     get sides(){reconcile();return [...sides];},
     get isDragging(){return drags.size>0;},
   };
-  window.TwistTennisSim=api;
+  window.TwistPickleballSim=api;
   const clientPoint = event => {
     const r=document.querySelector('#game')?.getBoundingClientRect()??surface.getBoundingClientRect();
     return {x:(event.clientX-r.left)*1920/r.width,y:(event.clientY-r.top)*1080/r.height};
@@ -153,10 +153,9 @@
       const body=node('g',{role:'button',tabindex:'0','aria-label':`${names[piece.glyph-1]} piece: drag to move`});
       body.style.cssText='pointer-events:all;cursor:grab;touch-action:none';
       const shape=node('path',{fill:'#f18c72',stroke:'#163b3f','stroke-width':'5'});
-      const face=node('path',{d:'M 39 -18 Q 57 0 39 18 M 20 -20 L 26 -20 M 20 20 L 26 20',fill:'none',stroke:'#163b3f','stroke-width':'6','stroke-linecap':'round'});
       const front=node('path',{d:'M 57 -11 L 72 0 L 57 11 Z',fill:'#fff9e9',stroke:'#163b3f','stroke-width':'3'});
-      const label=node('text',{x:'-16',y:'14','text-anchor':'middle',fill:'#163b3f','font-family':'system-ui,sans-serif','font-size':'36','font-weight':'800'});
-      body.append(shape,face,front,label);
+      const art=node('image',{href:`piece-art/${piece.glyph}.png`,x:'-52',y:'-72',width:'104',height:'144',preserveAspectRatio:'xMidYMid meet'});
+      body.append(shape,art,front);
       body.addEventListener('pointerdown',e=>startDrag(e,piece.id,'move'));
       body.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){consume(e);selected=piece.id;}});
       const handle=node('g',{role:'button',tabindex:'0','aria-label':`${names[piece.glyph-1]} rotation handle: drag to twist`});
@@ -166,17 +165,19 @@
       handle.append(node('circle',{cx:'-140',cy:'0',r:'27',fill:'#fff9e9',stroke:'#163b3f','stroke-width':'4'}));
       handle.append(node('path',{d:'M -148 8 A 11 11 0 1 1 -130 5 M -130 -3 L -130 6 L -139 5',fill:'none',stroke:'#163b3f','stroke-width':'3.5','stroke-linecap':'round','stroke-linejoin':'round'}));
       handle.addEventListener('pointerdown',e=>startDrag(e,piece.id,'turn'));
-      group.append(handle,body);surface.append(group);view={group,shape,label,handle};views.set(piece.id,view);
+      group.append(handle,body);surface.append(group);view={group,shape,art,handle};views.set(piece.id,view);
     }
     const side=sides.indexOf(piece.id);
     view.group.setAttribute('transform',`translate(${piece.x} ${piece.y}) rotate(${piece.orientation})`);
-    view.shape.setAttribute('fill',side===1?'#e8dfb6':'#f18c72');view.label.textContent=side===1?'R':'L';
+    view.shape.setAttribute('fill',side===1?'#e8dfb6':'#f18c72');
+    // The measured footprint and handle turn; the product render stays upright in the browser view.
+    view.art.setAttribute('transform',`rotate(${-piece.orientation})`);
     const shape=footprints?.pieces[String(piece.glyph)];
     view.shape.setAttribute('d',shape?shape.outlineMm.map(([x,y],i)=>`${i?'L':'M'}${-y*3.6},${-x*3.6}`).join(' ')+' Z':'M 65 0 C 65 78 -66 78 -66 0 C -66 -78 65 -78 65 0 Z');
     view.group.style.opacity=blocked()?'0.45':'1';
   }
   function clampPosition(piece,x,y) {
-    const side=sides.indexOf(piece.id),left=side===1?1070:250,right=side===1?1670:850;
+    const side=sides.indexOf(piece.id),left=side===1?1070:120,right=side===1?1800:850;
     return {...piece,x:Math.min(right,Math.max(left,x)),y:Math.min(840,Math.max(240,y))};
   }
   window.addEventListener('pointermove',event=>{
@@ -233,7 +234,7 @@
     for(const [id,view]of views)if(!all.some(p=>p.id===id)){view.group.remove();views.delete(id);}
     all.forEach(drawPiece);
     for(let side=0;side<2;side++)placeButtons[side].textContent=sides[side]===null?'Place piece':'Piece ready';
-    const state=window.TwistTennisState;
+    const state=window.TwistPickleballState;
     surface.style.visibility=state?.mode==='help'||state?.mode==='over'?'hidden':'visible';
     status.textContent=state?.mode==='play'
       ?state.match?.phase==='serve'?'Line touching the ball? E / . sends it forward.':'Slide beside the ball, then twist to return it.'

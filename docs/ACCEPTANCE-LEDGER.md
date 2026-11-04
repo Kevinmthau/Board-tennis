@@ -1,4 +1,4 @@
-# Acceptance ledger: Twist Tennis
+# Acceptance ledger: Twist Pickleball
 
 ## October 27, 2026 — First web playable
 
@@ -75,3 +75,15 @@ Browser checks establish simulated behavior only; they do not establish physical
 - **Browser:** All 416 actual-font layout fixtures pass with no text intersections, inset violations, or undersized/out-of-bounds targets. Updated HUD screenshot: `artifacts/review-hud.png`. The final standalone package boots to its title screen with no captured console errors or warnings.
 - **Board/human:** No new hardware installation or physical playtest performed for this review. Native save round-trip, tracking feel, audio timing, and two-person volley behavior remain pending physical verification; browser and automated checks do not establish those results.
 - **Publication:** Created public [Kevinmthau/Board-tennis](https://github.com/Kevinmthau/Board-tennis), configured `origin`, and pushed reviewed code commit `7683b73` to `main`. GitHub visibility and default branch verified.
+
+## November 4, 2026 — Pickleball conversion and reviewed PR
+
+- **Asked for:** Pickleball rules using board-game-standards and board-games-ai; create a PR, review in a clean context, clear P0/P1 findings, merge, push, and clean up.
+- **Source:** Traditional singles side-out scoring to 11 with a two-point lead; score-based service side and diagonal service box; one serve attempt; both opening bounces; footprint-based serve and kitchen faults; post-volley follow-through; net and out faults without wall rebounds. Twist contact, automatic arc, receiver slowdown, and the 0.2-second jitter-tolerant settling window are explicit tabletop adaptations. Tennis saves migrate while installed IDs and Sports/SDK assets remain fixed.
+- **Standards:** Read both requested sources, applied approved bundled font, canonical equipment/browser renders, home art without product pieces or subtitle, separate title card, animated teaching pages, and existing platform/seat/input rules. Scope and conflicts are recorded in PLAN.md.
+- **Unit/integration:** 167 passed, 0 failed, 3 existing external-catalog skips. Includes real main-loop input for a complete 11–0 match, both side outs, both opening returns, help/menu freeze, result wait, rematch, and explicit reseating. Rule tests cover both sides, lines, all eight measured footprints, post-dead-ball kitchen faults, jitter-tolerant momentum settling, frame ordering, and save migration/validation.
+- **Browser:** Chromium through the normal browser controls: home, all six help pages and return, player selector, both placements, legal serve, airborne ball, first bounce, scoring, pause/resume, odd-score next serve, and a side out without a point. Report/screenshots: local ignored `artifacts/browser-journey.json`, `artifacts/pickleball-*.png`. Two initial Chromium autoplay warnings occur before a user gesture; no JavaScript exceptions were captured.
+- **Layout:** 120 actual-font fixture cases in browser and native seat orientations, including long/accented names, three-digit scores, help, serve, rally, side out, pending follow-through, missing pieces, and result. No measured text overlaps, insets, text-floor, target-size, or teaching-truncation failures. Report: local ignored `artifacts/pickleball-layout-audit.json`. Native score positions leave the serve ball clear. The separate title-card export was visually checked. This is renderer evidence, not physical input evidence.
+- **Build:** TypeScript, Vite, standalone web output, Board package, and diff whitespace checks pass. Package `twist-pickleball.webapp.zip` retains the installed IDs; native bundle `index-YXOOoolV.js` has no browser adapters.
+- **Review/publication:** Pending independent PR review.
+- **Board/human:** No hardware installation or physical playtest for this change. Physical recognition, kitchen/follow-through feel, native save/restore, performance, and an uncoached two-person match remain unchecked.

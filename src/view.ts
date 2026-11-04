@@ -2,18 +2,19 @@ import { gameFont } from './runtime';
 import { drawTitle } from './title';
 import type { Box } from './howto';
 import { bake } from './fx';
-import { travelScale, type Match, type Side } from './tennis';
+import { COURT, PICKLEBALL, FAULTS, mustBounce, serviceTarget, serveFromBottom, travelScale, type Match, type Side } from './pickleball';
 import { ballDisplay } from './ball-display';
 import type { SwingPose } from './swing';
 
 export interface RacketView { pose: SwingPose; side: Side; active: boolean; glyphId: number }
 export interface GameView {
+  helpPage?: number;
   mode: 'title' | 'setup' | 'help' | 'play' | 'over'; now: number; match: Match; browser: boolean; canContinue: boolean;
   seats: { name: string; side: Side | null; present: boolean; glyphId: number }[];
   rackets: RacketView[]; missing: boolean; drawEffects: () => void;
 }
-type Key = 'play'|'continue'|'help'|'back'|'add'|'leftPlayer'|'rightPlayer'|'rematch'|'setup';
-export const BUTTONS: Record<Key, Box[]> = { play: [], continue: [], help: [], back: [], add: [], leftPlayer: [], rightPlayer: [], rematch: [], setup: [] };
+type Key = 'play'|'continue'|'help'|'back'|'add'|'leftPlayer'|'rightPlayer'|'rematch'|'setup'|'helpNext'|'helpPrev';
+export const BUTTONS: Record<Key, Box[]> = { play: [], continue: [], help: [], back: [], add: [], leftPlayer: [], rightPlayer: [], rematch: [], setup: [], helpNext: [], helpPrev: [] };
 const C = { green: '#174c43', deep: '#123d37', blue: '#3184b4', blueLight: '#3c92bf', blueDark: '#26749f',
   cream: '#fff1ca', faded: '#b7d4cc', white: '#fff9e6', lime: '#e6f36f', coral: '#ff9c7d', leaf: '#37735a', ink: '#163e3a' };
 const TEAM = [C.coral, C.cream];
@@ -86,9 +87,11 @@ function ballBody(ctx: CanvasRenderingContext2D, x: number, y: number, radius: n
   ctx.strokeStyle = '#f8ffb4'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = C.lime; ctx.beginPath(); ctx.arc(-radius * .06, -radius * .09, radius * .94, 0, TAU); ctx.fill();
   ctx.fillStyle = '#fffbd8'; ctx.globalAlpha = opacity * .7; ctx.beginPath(); ctx.ellipse(-radius * .28, -radius * .34, radius * .3, radius * .18, -.7, 0, TAU); ctx.fill(); ctx.globalAlpha = opacity;
-  ctx.strokeStyle = '#fffbd8'; ctx.lineWidth = Math.max(2, radius * .1);
-  ctx.beginPath(); ctx.arc(-radius * .72, 0, radius * .78, -.95, .95); ctx.stroke();
-  ctx.beginPath(); ctx.arc(radius * .72, 0, radius * .78, Math.PI - .95, Math.PI + .95); ctx.stroke();
+  // A perforated plastic pickleball, rather than tennis-ball seams.
+  ctx.fillStyle = '#788c23';
+  for (const [hx, hy, r] of [[0, 0, .18], [-.5, .16, .14], [.46, .12, .14], [-.16, .53, .13], [.22, -.48, .13]]) {
+    ctx.beginPath(); ctx.ellipse(radius * hx, radius * hy, radius * r, radius * r * .8, 0, 0, TAU); ctx.fill();
+  }
   ctx.restore();
 }
 function ball(ctx: CanvasRenderingContext2D, x: number, y: number, radius = 18) {
@@ -161,29 +164,30 @@ function panel(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
 }
 function makeCourt() {
   court = bake(1920, 1080, ctx => {
-    // The whole glass is the court. All four physical edges can rebound the ball.
     const ground = ctx.createLinearGradient(0, 0, 1920, 1080);
-    ground.addColorStop(0, '#338bb9'); ground.addColorStop(.5, '#3183b0'); ground.addColorStop(1, '#2879a4');
+    ground.addColorStop(0, '#286957'); ground.addColorStop(1, '#174c43');
     ctx.fillStyle = ground; ctx.fillRect(0, 0, 1920, 1080);
-    ctx.fillStyle = 'rgba(255,249,218,.025)';
-    for (let x = 0; x < 1920; x += 320) ctx.fillRect(x, 0, 160, 1080);
+    ctx.fillStyle = C.blue;
+    ctx.fillRect(COURT.left, COURT.top, COURT.right - COURT.left, COURT.bottom - COURT.top);
+    ctx.fillStyle = '#256d88';
+    ctx.fillRect(COURT.kitchenLeft, COURT.top, COURT.kitchenRight - COURT.kitchenLeft, COURT.bottom - COURT.top);
     let seed = 137;
     for (let i = 0; i < 5400; i++) {
       seed = (Math.imul(seed, 1664525) + 1013904223) | 0; const x = (seed >>> 0) / 4294967296 * 1920;
       seed = (Math.imul(seed, 1664525) + 1013904223) | 0; const y = (seed >>> 0) / 4294967296 * 1080;
       ctx.fillStyle = i % 2 ? 'rgba(255,255,220,.035)' : 'rgba(8,52,68,.045)'; ctx.fillRect(x, y, 2, 2);
     }
-    // Flush wall strips describe the rebound surface, without an inset court rectangle.
-    ctx.fillStyle = '#205b78'; ctx.fillRect(0, 0, 1920, 13); ctx.fillRect(0, 1067, 1920, 13);
-    line(ctx, 0, 13, 1920, 13, C.cream, 4); line(ctx, 0, 1067, 1920, 1067, C.cream, 4);
-    ctx.fillStyle = C.coral; ctx.fillRect(0, 0, 10, 1080);
-    ctx.fillStyle = C.cream; ctx.fillRect(1910, 0, 10, 1080);
-    // Top-down net and its shallow shadow share the exact rules center.
-    ctx.fillStyle = 'rgba(11,45,47,.18)'; ctx.fillRect(961, 0, 17, 1080);
-    ctx.fillStyle = '#174d56'; ctx.fillRect(954, 0, 12, 1080);
-    for (let y = 6; y < 1080; y += 13) line(ctx, 953, y, 969, y + 3, '#8fb5b6', 1);
-    line(ctx, 959, 0, 959, 1080, C.white, 5);
-    for (const y of [20, 1060]) { ctx.fillStyle = C.deep; ctx.beginPath(); ctx.arc(960, y, 12, 0, TAU); ctx.fill(); ctx.fillStyle = C.cream; ctx.beginPath(); ctx.arc(957, y - 2, 5, 0, TAU); ctx.fill(); }
+    // Rule coordinates are the outside edges of the boundary lines; lines count as in.
+    ctx.strokeStyle = C.cream; ctx.lineWidth = 6;
+    ctx.strokeRect(COURT.left + 3, COURT.top + 3, COURT.right - COURT.left - 6, COURT.bottom - COURT.top - 6);
+    for (const x of [COURT.kitchenLeft + 3, COURT.kitchenRight - 3]) line(ctx, x, COURT.top, x, COURT.bottom, C.cream, 6);
+    line(ctx, COURT.left, 540, COURT.kitchenLeft, 540, C.cream, 6);
+    line(ctx, COURT.kitchenRight, 540, COURT.right, 540, C.cream, 6);
+    ctx.fillStyle = 'rgba(11,45,47,.18)'; ctx.fillRect(961, COURT.top, 17, COURT.bottom - COURT.top);
+    ctx.fillStyle = '#174d56'; ctx.fillRect(954, COURT.top, 12, COURT.bottom - COURT.top);
+    for (let y = COURT.top; y < COURT.bottom; y += 13) line(ctx, 953, y, 969, y + 3, '#8fb5b6', 1);
+    line(ctx, 959, COURT.top, 959, COURT.bottom, C.white, 5);
+
   });
 }
 export async function loadGameArt() {
@@ -199,26 +203,46 @@ function titleScreen(ctx: CanvasRenderingContext2D, v: GameView, f: Frame) {
   at(ctx, f, () => {
     const w = f.native ? 840 : 1520;
     panel(ctx, -w / 2, -410, w, 820);
-    text(ctx, 'TWO PLAYERS · ONE COURT', 0, -347, 32, C.faded);
+
     drawTitle(ctx, { x: f.native ? -330 : -540, y: -290, width: f.native ? 660 : 1080, height: f.native ? 240 : 320 }, { ink: C.cream });
     if (f.native) {
-      piece(ctx, 5, -280, 36, 155); piece(ctx, 1, 280, 36, 155);
+      paddle(ctx, -260, 52, 110, -.4, C.coral); paddle(ctx, 260, 52, 110, .4, C.cream);
+
       ball(ctx, Math.sin(v.now / 850) * 105, 60, 29);
-      text(ctx, 'Slide. Twist. Rally.', 0, 174, 48);
-      text(ctx, 'Any two Sports pieces', 0, 228, 32, C.faded);
-      button(ctx, f, 'play', { x: -366, y: 282, width: 350, height: 120 }, v.canContinue ? 'NEW MATCH' : 'PLAY', true);
-      button(ctx, f, v.canContinue ? 'continue' : 'help', { x: 16, y: 282, width: 350, height: 120 }, v.canContinue ? 'CONTINUE' : 'HOW TO PLAY');
+
+      if (v.canContinue) button(ctx, f, 'continue', { x: -180, y: 140, width: 360, height: 120 }, 'CONTINUE', true);
+      button(ctx, f, 'play', { x: -366, y: 282, width: 350, height: 120 }, v.canContinue ? 'NEW MATCH' : 'PLAY', !v.canContinue);
+      button(ctx, f, 'help', { x: 16, y: 282, width: 350, height: 120 }, 'HOW TO PLAY');
     } else {
-      piece(ctx, 5, -610, -45, 290); piece(ctx, 1, 610, -45, 290);
+      paddle(ctx, -550, -20, 220, -.4, C.coral); paddle(ctx, 550, -20, 220, .4, C.cream);
+
       ball(ctx, Math.sin(v.now / 1000) * 150, 98, 25);
-      text(ctx, 'Slide. Twist. Rally.', 0, 176, 56);
-      text(ctx, 'Any two Sports pieces. First to 7.', 0, 242, 32, C.faded);
+
       const buttons = v.canContinue ? [{ key: 'continue' as Key, label: 'CONTINUE', primary: true }, { key: 'play' as Key, label: 'NEW MATCH', primary: false }, { key: 'help' as Key, label: 'HOW TO PLAY', primary: false }]
         : [{ key: 'play' as Key, label: 'PLAY', primary: true }, { key: 'help' as Key, label: 'HOW TO PLAY', primary: false }];
       const bw = v.canContinue ? 360 : 420, gap = 28, total = buttons.length * bw + (buttons.length - 1) * gap;
       buttons.forEach((b, i) => button(ctx, f, b.key, { x: -total / 2 + i * (bw + gap), y: 282, width: bw, height: 120 }, b.label, b.primary));
     }
   });
+}
+/** Original paddle key art. These are sports equipment, never substitutes for physical Board pieces. */
+function paddle(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, angle: number, color: string) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
+  ctx.fillStyle = '#102f2b'; round(ctx, -size * .12, size * .2, size * .24, size * .65, size * .08); ctx.fill();
+  ctx.fillStyle = color; round(ctx, -size * .46, -size * .65, size * .92, size * 1.05, size * .23); ctx.fill();
+  ctx.strokeStyle = C.deep; ctx.lineWidth = size * .035; ctx.stroke();
+  ctx.fillStyle = C.blueDark; round(ctx, -size * .33, -size * .5, size * .66, size * .72, size * .17); ctx.fill();
+  line(ctx, -size * .22, -size * .3, size * .22, size * .04, C.cream, size * .06);
+  ctx.restore();
+}
+/** Separate 1536×864 composition for the library card; the export does not include home buttons. */
+export function drawTitleCard(ctx: CanvasRenderingContext2D) {
+  if (!court) makeCourt();
+  ctx.drawImage(court!, 0, 0, 1536, 864);
+  ctx.fillStyle = 'rgba(15,49,42,.82)'; ctx.fillRect(0, 0, 1536, 864);
+  drawTitle(ctx, { x: 168, y: 20, width: 1200, height: 430 }, { ink: C.cream });
+  paddle(ctx, 350, 565, 270, -.4, C.coral); paddle(ctx, 1186, 565, 270, .4, C.cream);
+  ball(ctx, 768, 590, 78);
 }
 function seatFor(v: GameView, side: Side) {
   const taken = v.seats.find(s => s.side === side);
@@ -247,54 +271,80 @@ function setup(ctx: CanvasRenderingContext2D, v: GameView, f: Frame) {
     }
   });
 }
+export const HELP = [
+  { title: 'A TWIST IS YOUR SWING', lines: ['Use any two Sports pieces.', 'Slide beside the raised ball.', 'Twist the line through it. Faster hits harder.'] },
+  { title: 'SERVE DIAGONALLY', lines: ['Keep your piece behind the baseline.', 'Even: serve right. Odd: serve left.', 'One try. Clear the kitchen. Land diagonally.'] },
+  { title: 'TWO OPENING BOUNCES', lines: ['Let the serve bounce before returning.', 'Let its return bounce on the other side.', 'Then volleys are allowed.'] },
+  { title: 'STAY OUT TO VOLLEY', lines: ['No volley with your piece in the kitchen.', 'The line counts. Stay out through your swing.', 'You may enter to hit a ball that bounced.'] },
+  { title: 'KEEP THE BALL IN', lines: ['Land inside the lines. Lines count as in.', 'The net and out-of-bounds shots are faults.', 'Two bounces lose. No wall rebounds.'] },
+  { title: 'ONLY THE SERVER SCORES', lines: ['Win a serving rally: score and serve again.', 'Win as receiver: side out. Take the serve.', `First to ${PICKLEBALL.pointsToWin}, win by ${PICKLEBALL.leadToWin}. Then choose Rematch.`] },
+] as const;
 function help(ctx: CanvasRenderingContext2D, v: GameView, f: Frame) {
   at(ctx, f, () => {
+    const page = Math.max(0, Math.min(HELP.length - 1, v.helpPage ?? 0)), lesson = HELP[page];
     panel(ctx, f.native ? -420 : -760, -430, f.native ? 840 : 1520, 860);
-    text(ctx, 'A TWIST IS YOUR SWING', 0, -350, f.native ? 48 : 64);
-    if (f.native) text(ctx, 'Return before the second bounce.', 0, -291, 32, C.faded);
-    const px = f.native ? -100 : -280, py = -20;
-    piece(ctx, 5, px, py + (f.native ? 52 : 22), f.native ? 170 : 210);
-    // Real clockwise line sweep: facing up, then rightward tangent at contact.
-    const t = (v.now % 3200) / 3200;
-    const swing = Math.min(1, Math.max(0, (t - .15) / .28));
-    const angle = (-120 + swing * 60) * Math.PI / 180;
-    const sx = px + Math.cos(angle) * 96, sy = py + Math.sin(angle) * 96;
-    line(ctx, sx, sy, px + Math.cos(angle) * 240, py + Math.sin(angle) * 240, C.cream, 7);
-    const contact = .15 + .28 * .5, flight = Math.min(1, Math.max(0, (t - contact) / .5));
-    const distance = f.native ? 320 : 610, bounceAt = .6;
-    const arcT = flight < bounceAt ? flight / bounceAt : (flight - bounceAt) / (1 - bounceAt);
-    const arc = flight < bounceAt ? (f.native ? 95 : 140) : (f.native ? 50 : 75);
-    const height = flight > 0 && flight < 1 ? 4 * arcT * (1 - arcT) * arc : 0;
-    if (flight >= bounceAt) groundImpact(ctx, px + distance * bounceAt, py - 130, (flight - bounceAt) * 1.6, 1, 0, false);
-    airborneBall(ctx, px + flight * distance, py - 130, height, 20, 1, true);
-    if (f.native) {
-      text(ctx, 'Slide beside the ball.', 0, 150, 40);
-      text(ctx, 'Twist your line through it.', 0, 204, 40);
-      text(ctx, 'Faster twist. Harder shot.', 0, 258, 32, C.faded);
+    text(ctx, lesson.title, 0, -350, f.native ? 40 : 56, C.cream, f.native ? 770 : 1320, 32, 1);
+    const t = (v.now % 4000) / 4000;
+    if (page === 0) {
+      const px = -170, py = -10;
+      piece(ctx, 5, px, py, 150);
+      const swing = Math.min(1, Math.max(0, (t - .15) / .28)), angle = (-120 + swing * 60) * Math.PI / 180;
+      line(ctx, px + Math.cos(angle) * 90, py + Math.sin(angle) * 90,
+        px + Math.cos(angle) * 210, py + Math.sin(angle) * 210, C.cream, 7);
+      const flight = Math.min(1, Math.max(0, (t - .29) / .5));
+      airborneBall(ctx, px + flight * 420, py - 125, 110 * Math.sin(flight * Math.PI), 20, 1, true);
     } else {
-      text(ctx, 'Slide beside the ball.', 0, 150, 48);
-      text(ctx, 'Twist the line through it. The ball leaves sideways.', 0, 215, 40);
-      text(ctx, 'Return before the second ground bounce. Walls stay in play.', 0, 275, 32, C.faded);
+      const left = -300, right = 300, top = -250, bottom = 10, kitchen = 95;
+      ctx.fillStyle = C.blue; ctx.fillRect(left, top, right - left, bottom - top);
+      ctx.fillStyle = '#256d88'; ctx.fillRect(-kitchen, top, kitchen * 2, bottom - top);
+      ctx.strokeStyle = C.cream; ctx.lineWidth = 4; ctx.strokeRect(left, top, right - left, bottom - top);
+      for (const x of [-kitchen, 0, kitchen]) line(ctx, x, top, x, bottom, C.cream, 4);
+      line(ctx, left, -120, -kitchen, -120, C.cream, 3); line(ctx, kitchen, -120, right, -120, C.cream, 3);
+      if (page === 1) {
+        ctx.fillStyle = 'rgba(230,243,111,.3)'; ctx.fillRect(kitchen, top, right - kitchen, 130);
+        ball(ctx, -340 + t * 590, -50 - t * 140, 14);
+      } else if (page === 2) {
+        const half = t < .5, u = (t % .5) * 2, x = half ? -240 + u * 480 : 240 - u * 480;
+        const hop = u < .8 ? Math.sin(u / .8 * Math.PI) * 60 : Math.sin((u - .8) / .2 * Math.PI) * 25;
+        ball(ctx, x, -120 - hop, 14);
+        if (u > .8) groundImpact(ctx, half ? 144 : -144, -120, (u - .8) * 2, 1, 0, false);
+      } else if (page === 3) {
+        const illegal = t >= .5;
+        piece(ctx, 5, illegal ? -35 : -170, -115, 95);
+        text(ctx, illegal ? 'FAULT' : 'VOLLEY', 185, -110, 32, illegal ? C.coral : C.lime);
+      } else if (page === 4) {
+        ball(ctx, -240 + t * 480, -120 - t * 200, 14);
+        if (t > .65) text(ctx, 'OUT', 210, -105, 32, C.coral);
+      } else {
+        text(ctx, t < .5 ? 'SERVER +1' : 'SIDE OUT', 0, -170, 40, C.lime);
+        text(ctx, t < .5 ? '1 — 0' : '1 — 0', 0, -80, 48);
+      }
     }
-    button(ctx, f, 'back', { x: -200, y: 302, width: 400, height: 120 }, 'BACK TO GAME', true);
+    lesson.lines.forEach((label, i) => text(ctx, label, 0, 100 + i * 58, f.native ? 32 : 40,
+      i === 2 ? C.faded : C.cream, f.native ? 760 : 1320, 32, 1));
+    for (let i = 0; i < HELP.length; i++) { ctx.fillStyle = i === page ? C.lime : '#548375'; ctx.beginPath(); ctx.arc((i - 2.5) * 28, 270, 6, 0, TAU); ctx.fill(); }
+    if (page > 0) button(ctx, f, 'helpPrev', { x: -380, y: 302, width: 220, height: 120 }, 'PREV');
+    button(ctx, f, 'back', { x: -140, y: 302, width: 280, height: 120 }, 'BACK');
+    button(ctx, f, 'helpNext', { x: 160, y: 302, width: 220, height: 120 }, page === HELP.length - 1 ? 'DONE' : 'NEXT', true);
   });
 }
+
 function hud(ctx: CanvasRenderingContext2D, v: GameView) {
   if (v.browser) {
     for (const side of [0, 1] as Side[]) {
-      const x = side === 0 ? 470 : 1450, s = seatFor(v, side);
-      ctx.fillStyle = C.deep; round(ctx, x - 310, 50, 620, 128, 25); ctx.fill();
-      ctx.fillStyle = TEAM[side]; round(ctx, x - 310, 50, 12, 128, 5); ctx.fill();
-      text(ctx, s?.name ?? 'Player', x - 60, 114, 48, TEAM[side], 420);
-      text(ctx, String(v.match.score[side]), x + 228, 114, 76, C.cream, 132, 48, 1);
+      const x = side === 0 ? 440 : 1480, s = seatFor(v, side);
+      ctx.fillStyle = C.deep; round(ctx, x - 300, 50, 600, 128, 25); ctx.fill();
+      ctx.fillStyle = TEAM[side]; round(ctx, x - 300, 50, 12, 128, 5); ctx.fill();
+      text(ctx, s?.name ?? 'Player', x - 60, 114, 48, TEAM[side], 390);
+      text(ctx, String(v.match.score[side]), x + 218, 114, 76, C.cream, 132, 48, 1);
     }
-    text(ctx, 'FIRST TO 7', 960, 86, 48, C.cream);
+    text(ctx, `FIRST TO ${PICKLEBALL.pointsToWin}`, 960, 86, 48, C.cream);
     text(ctx, 'WIN BY 2', 960, 143, 48, C.faded);
   } else {
     for (const side of [0, 1] as Side[]) {
       ctx.save(); ctx.translate(side === 0 ? 155 : 1765, 540); ctx.rotate(side === 0 ? Math.PI / 2 : -Math.PI / 2);
-      text(ctx, seatFor(v, side)?.name ?? 'Player', 0, 45, 48, TEAM[side], 680);
-      text(ctx, String(v.match.score[side]), 0, -60, 88, C.cream, 680, 48, 1);
+      text(ctx, seatFor(v, side)?.name ?? 'Player', 150, 45, 48, TEAM[side], 620);
+      text(ctx, String(v.match.score[side]), -340, 30, 88, C.cream, 320, 48, 1);
       ctx.restore();
     }
   }
@@ -314,7 +364,7 @@ function bounceBadgePosition(v: GameView, x: number, y: number) {
   // Reserve the HUD and instruction slots so a court contact never covers their text.
   const zones: Box[] = v.browser
     ? [{ x: 160, y: 48, width: 1600, height: 132 }, { x: 48, y: 920, width: 1824, height: 112 }]
-    : [{ x: 48, y: 160, width: 222, height: 760 }, { x: 1650, y: 160, width: 222, height: 760 },
+    : [{ x: 48, y: 48, width: 222, height: 984 }, { x: 1650, y: 48, width: 222, height: 984 },
       { x: 330, y: 140, width: 145, height: 800 }, { x: 1445, y: 140, width: 145, height: 800 }];
   if (v.match.phase === 'point' && v.match.pointWinner !== null) {
     const pop = pointPopPosition(v.match.pointWinner, v.browser);
@@ -337,6 +387,15 @@ function bounceBadgePosition(v: GameView, x: number, y: number) {
 function play(ctx: CanvasRenderingContext2D, v: GameView) {
   hud(ctx, v);
   const m = v.match;
+  if (m.phase === 'serve') {
+    const box = serviceTarget(m), bottom = serveFromBottom(m.server, m.score[m.server]);
+    ctx.save(); ctx.globalAlpha = .18 + .06 * Math.sin(v.now / 400); ctx.fillStyle = C.lime;
+    ctx.fillRect(box.left + 6, box.top + 6, box.right - box.left - 12, box.bottom - box.top - 12);
+    // A fixed service area requests a legal position; it never follows a physical piece.
+    ctx.fillRect(m.server === 0 ? 210 : 1580, bottom ? 620 : 290, 130, 170);
+    ctx.restore();
+  }
+
   if (m.phase === 'rally' && travelScale(m) < .7) {
     // Discreet boundary ticks mark the receiving window without following the controller.
     const x = m.receiver === 0 ? 320 : 1600;
@@ -387,23 +446,28 @@ function play(ctx: CanvasRenderingContext2D, v: GameView) {
   }
   if (m.phase === 'serve') {
     const name = seatFor(v, m.server)?.name ?? (m.server === 0 ? 'Left player' : 'Right player');
-    if (v.browser) statusText(ctx, v, `SERVE · ${name}`, 'Twist through the ball');
+    if (v.browser) statusText(ctx, v, `SERVE · ${name}`, 'Serve diagonally · one attempt');
     else for (const f of NATIVE) at(ctx, f, () => {
       text(ctx, f.side === m.server ? 'YOUR SERVE' : 'GET READY', 0, 110, 48);
-      if (f.side === m.server) text(ctx, 'Twist through the ball', 0, 50, 48, C.faded, 760);
+      if (f.side === m.server) text(ctx, m.score[m.server] % 2 === 0 ? 'Serve from your right' : 'Serve from your left', 0, 50, 48, C.faded, 760);
     });
   } else if (m.phase === 'rally') {
-    if (m.groundBounces === 1) {
+    if (mustBounce(m)) {
+      if (v.browser) statusText(ctx, v, m.rally === 1 ? 'LET THE SERVE BOUNCE' : 'LET THE RETURN BOUNCE');
+      else at(ctx, NATIVE[m.receiver], () => text(ctx, 'LET IT BOUNCE', 0, 110, 48, C.lime, 760));
+    } else if (m.groundBounces === 1) {
       if (v.browser) text(ctx, '1 BOUNCE · RETURN IT!', m.receiver === 0 ? 490 : 1430, 980, 48, C.lime, 860);
       else at(ctx, NATIVE[m.receiver], () => text(ctx, '1 BOUNCE · RETURN IT!', 0, 110, 48, C.lime, 760));
     } else if (v.browser) statusText(ctx, v, m.rally > 1 ? `${m.rally} SHOT RALLY` : 'RALLY ON');
   }
-  else if (m.phase === 'point') {
+  else if (m.phase === 'point' && m.pendingOutcome) {
+    statusText(ctx, v, 'Finish your swing', 'Keep clear of the kitchen');
+  } else if (m.phase === 'point') {
     const name = seatFor(v, m.pointWinner ?? 0)?.name ?? 'Player';
-    const reason = m.reason === 'short' ? 'Shot did not cross' : 'Two ground bounces';
-    if (v.browser) statusText(ctx, v, `POINT · ${name}`, reason);
+    const reason = m.reason ? FAULTS[m.reason] : 'Finish your swing';
+    if (v.browser) statusText(ctx, v, `${m.pointScored ? 'POINT' : 'SIDE OUT'} · ${name}`, reason);
     else for (const f of NATIVE) at(ctx, f, () => {
-      text(ctx, f.side === m.pointWinner ? 'YOUR POINT' : 'OPPONENT POINT', 0, 110, 48);
+      text(ctx, m.pointScored ? (f.side === m.pointWinner ? 'YOUR POINT' : 'OPPONENT POINT') : 'SIDE OUT', 0, 110, 48);
       text(ctx, reason, 0, 50, 48, C.faded, 760);
     });
   }
